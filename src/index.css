@@ -24,6 +24,11 @@
 @utility pt-safe {
   padding-top: env(safe-area-inset-top);
 }
+/* Franja de seguridad de obra (amarillo / negro): acento de marca */
+@utility franja-obra {
+  background: repeating-linear-gradient(-45deg, #facc15 0 10px, #0a0a0a 10px 20px);
+}
+
 @utility scrollbar-none {
   scrollbar-width: none;
   &::-webkit-scrollbar {

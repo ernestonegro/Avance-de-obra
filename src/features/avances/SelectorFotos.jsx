@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Camera, Images, X, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { Camera, Images, X, Loader2, CheckCircle2, AlertTriangle, UploadCloud } from 'lucide-react'
 import { MAX_FOTOS_POR_AVANCE } from '../../lib/constantes'
 import { formatearBytes } from '../../lib/imagenes'
 
@@ -63,9 +63,16 @@ export default function SelectorFotos({ fotos, onAgregar, onQuitar, bloqueado })
   const lleno = fotos.length >= MAX_FOTOS_POR_AVANCE
   const [aviso, setAviso] = useState('')
 
+  const [arrastrando, setArrastrando] = useState(false)
+
   const alElegir = (e) => {
     const elegidos = Array.from(e.target.files || [])
     e.target.value = '' // permite volver a elegir el mismo archivo
+    agregar(elegidos)
+  }
+
+  const agregar = (elegidos) => {
+    if (!elegidos.length) return
     const disponibles = MAX_FOTOS_POR_AVANCE - fotos.length
     const descartadas = onAgregar(elegidos.slice(0, disponibles))
     const sobrantes = Math.max(0, elegidos.length - disponibles)
@@ -75,9 +82,38 @@ export default function SelectorFotos({ fotos, onAgregar, onQuitar, bloqueado })
     setAviso(partes.join(' '))
   }
 
+  // Escritorio: arrastrar y soltar archivos desde el explorador.
+  const alSoltar = (e) => {
+    e.preventDefault()
+    setArrastrando(false)
+    if (bloqueado || lleno) return
+    agregar(Array.from(e.dataTransfer.files || []))
+  }
+
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
+      <button
+        type="button"
+        disabled={bloqueado || lleno}
+        onClick={() => galeriaRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault()
+          if (!bloqueado && !lleno) setArrastrando(true)
+        }}
+        onDragLeave={() => setArrastrando(false)}
+        onDrop={alSoltar}
+        className={`hidden min-h-36 w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 text-center transition lg:flex ${
+          arrastrando ? 'border-yellow-500 bg-yellow-50' : 'border-neutral-300 bg-neutral-50 hover:border-neutral-500 hover:bg-neutral-100'
+        } disabled:cursor-not-allowed disabled:opacity-50`}
+      >
+        <span className={`flex size-12 items-center justify-center rounded-full ${arrastrando ? 'bg-yellow-400' : 'bg-neutral-950 text-white'}`}>
+          <UploadCloud className="size-6" aria-hidden />
+        </span>
+        <span className="font-black">{arrastrando ? 'Soltá las fotos acá' : 'Arrastrá fotos acá o hacé clic para elegir'}</span>
+        <span className="text-sm text-neutral-600">JPG, PNG o WebP · hasta {MAX_FOTOS_POR_AVANCE} por avance · se comprimen antes de subir</span>
+      </button>
+
+      <div className="grid grid-cols-2 gap-3 lg:hidden">
         <button
           type="button"
           disabled={bloqueado || lleno}
@@ -108,7 +144,7 @@ export default function SelectorFotos({ fotos, onAgregar, onQuitar, bloqueado })
 
       {fotos.length > 0 && (
         <>
-          <ul className="grid grid-cols-3 gap-2">
+          <ul className="grid grid-cols-3 gap-2 lg:grid-cols-4">
             {fotos.map((f) => (
               <MiniaturaFoto key={f.id} foto={f} onQuitar={onQuitar} bloqueado={bloqueado} />
             ))}

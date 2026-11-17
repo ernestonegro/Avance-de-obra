@@ -54,5 +54,16 @@ export const horaExacta = (iso, tz) => fmt('horaExacta', tz).format(new Date(iso
 export const fechaCorta = (iso, tz) => fmt('fechaCorta', tz).format(new Date(iso))
 export const fechaLarga = (iso, tz) => capitalizar(fmt('dia', tz).format(new Date(iso)))
 
+/** Partes de un día para el bloque de fecha de la línea de tiempo: { numero, mes, semana }. */
+export function partesDia(clave) {
+  const d = desdeClave(clave)
+  return {
+    numero: Number(clave.slice(8, 10)),
+    mes: new Intl.DateTimeFormat(LOCALE, { month: 'short', timeZone: 'UTC' }).format(d).replace('.', ''),
+    semana: new Intl.DateTimeFormat(LOCALE, { weekday: 'long', timeZone: 'UTC' }).format(d),
+    anio: Number(clave.slice(0, 4)),
+  }
+}
+
 /** Para fechas "date" de Postgres (YYYY-MM-DD) sin corrimiento por zona horaria. */
 export const fechaCortaDesdeDia = (clave) => fmt('fechaCorta', 'UTC').format(desdeClave(clave))

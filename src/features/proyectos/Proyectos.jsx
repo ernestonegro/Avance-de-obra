@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Plus, MapPin, User } from 'lucide-react'
+import { Plus, MapPin, User, Building2, ArrowRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { supabase, mensajeError } from '../../lib/supabase'
 import { useProyectos } from '../../hooks/useProyectos'
 import Boton from '../../components/ui/Boton'
@@ -34,12 +35,16 @@ function FormNuevaObra({ onCreada }) {
   }
 
   return (
-    <form onSubmit={guardar} className="space-y-3 rounded-2xl border-2 border-neutral-950 p-3">
+    <form onSubmit={guardar} className="space-y-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200 lg:grid lg:grid-cols-3 lg:gap-3 lg:space-y-0 lg:p-6">
       <input required minLength={2} maxLength={120} placeholder="Nombre de la obra *" value={nombre} onChange={(e) => setNombre(e.target.value)} className={campo} />
       <input maxLength={200} placeholder="Dirección" value={direccion} onChange={(e) => setDireccion(e.target.value)} className={campo} />
       <input maxLength={120} placeholder="Cliente" value={cliente} onChange={(e) => setCliente(e.target.value)} className={campo} />
-      <p className="text-sm text-neutral-600">Una vez creada no se puede editar ni borrar desde la app.</p>
-      {error && <Aviso tipo="error">{error}</Aviso>}
+      <p className="text-sm text-neutral-600 lg:col-span-2 lg:self-center">Una vez creada no se puede editar ni borrar desde la app.</p>
+      {error && (
+        <div className="lg:col-span-3">
+          <Aviso tipo="error">{error}</Aviso>
+        </div>
+      )}
       <Boton type="submit" variante="acento" icono={Plus} cargando={guardando} bloque>
         Crear obra
       </Boton>
@@ -53,8 +58,11 @@ export default function Proyectos() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-2xl font-black">Obras</h1>
+      <div className="flex items-end justify-between gap-2">
+        <div>
+          <p className="text-sm font-bold tracking-widest text-neutral-500 uppercase">Gestión</p>
+          <h1 className="text-2xl font-black lg:text-4xl">Obras</h1>
+        </div>
         <Boton variante={creando ? 'secundario' : 'primario'} icono={Plus} onClick={() => setCreando((v) => !v)}>
           {creando ? 'Cerrar' : 'Nueva'}
         </Boton>
@@ -78,13 +86,23 @@ export default function Proyectos() {
       )}
       {!cargando && !error && proyectos.length === 0 && <Aviso tipo="info">Todavía no hay obras. Creá la primera con “Nueva”.</Aviso>}
 
-      <ul className="space-y-3">
+      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {proyectos.map((p) => (
-          <li key={p.id} className={`rounded-2xl border-2 p-3 ${p.activo ? 'border-neutral-950' : 'border-neutral-300 text-neutral-500'}`}>
-            <p className="text-lg leading-tight font-black">
-              {p.nombre}
-              {!p.activo && <span className="ml-2 text-sm font-bold">(inactiva)</span>}
-            </p>
+          <li
+            key={p.id}
+            className={`flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-neutral-200 transition hover:shadow-md ${p.activo ? '' : 'text-neutral-500 opacity-70'}`}
+          >
+            <div className="franja-obra h-1.5" aria-hidden />
+            <div className="flex flex-1 flex-col gap-1 p-4">
+            <div className="mb-1 flex items-start gap-3">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-neutral-950 text-yellow-400">
+                <Building2 className="size-6" aria-hidden />
+              </span>
+              <p className="text-lg leading-tight font-black">
+                {p.nombre}
+                {!p.activo && <span className="ml-2 text-sm font-bold">(inactiva)</span>}
+              </p>
+            </div>
             {p.direccion && (
               <p className="flex items-center gap-1 text-sm text-neutral-600">
                 <MapPin className="size-3.5 shrink-0" aria-hidden /> {p.direccion}
@@ -94,6 +112,15 @@ export default function Proyectos() {
               <p className="flex items-center gap-1 text-sm text-neutral-600">
                 <User className="size-3.5 shrink-0" aria-hidden /> {p.cliente_nombre}
               </p>
+            )}
+            </div>
+            {p.activo && (
+              <Link
+                to={`/?obra=${p.id}`}
+                className="flex min-h-12 items-center justify-between border-t border-neutral-200 px-4 font-bold hover:bg-neutral-50 active:bg-neutral-100"
+              >
+                Ver bitácora <ArrowRight className="size-5" aria-hidden />
+              </Link>
             )}
           </li>
         ))}

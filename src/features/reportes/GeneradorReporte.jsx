@@ -119,9 +119,22 @@ export default function GeneradorReporte() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-black">Reporte para cliente</h1>
+      <div>
+        <p className="text-sm font-bold tracking-widest text-neutral-500 uppercase">Reportes</p>
+        <h1 className="text-2xl font-black lg:text-4xl">Reporte para cliente</h1>
+        <p className="mt-1 max-w-2xl text-neutral-600">
+          Generá un enlace de solo lectura con el avance de un período. El cliente lo abre sin cuenta y lo puede guardar como PDF.
+        </p>
+      </div>
 
-      <form onSubmit={generar} className="space-y-4">
+      <div className="space-y-6 lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-6 lg:space-y-0">
+      <form onSubmit={generar} className="space-y-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200 lg:p-6">
+        <h2 className="flex items-center gap-2 text-base font-black uppercase">
+          <span className="flex size-7 items-center justify-center rounded-full bg-yellow-400">
+            <Link2 className="size-4" aria-hidden />
+          </span>
+          Nuevo enlace
+        </h2>
         {cargandoObras ? <Skeleton className="h-12 w-full" /> : <SelectorObra proyectos={proyectos} valor={obra} onCambiar={setObra} />}
 
         <div className="flex flex-wrap gap-2">
@@ -183,6 +196,7 @@ export default function GeneradorReporte() {
         </Boton>
       </form>
 
+      <div className="space-y-6">
       {nuevo && (
         <div className="space-y-3 rounded-2xl border-2 border-green-700 bg-green-50 p-3">
           <p className="font-bold text-green-900">Enlace listo (solo lectura). Desde “Ver / PDF” podés guardarlo como PDF.</p>
@@ -192,7 +206,7 @@ export default function GeneradorReporte() {
       )}
 
       {obra && (
-        <section className="space-y-3">
+        <section className="space-y-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200 lg:p-6">
           <h2 className="text-base font-black uppercase">Enlaces generados</h2>
           {(error || errorRevocar) && <Aviso tipo="error">{error || errorRevocar}</Aviso>}
           {cargando && reportes.length === 0 && <Skeleton className="h-24 w-full" />}
@@ -227,6 +241,8 @@ export default function GeneradorReporte() {
           </ul>
         </section>
       )}
+      </div>
+      </div>
     </div>
   )
 }

@@ -23,11 +23,16 @@ function leerUltimaEtapa() {
   }
 }
 
-function Seccion({ titulo, htmlFor, children, extra }) {
+function Seccion({ paso, titulo, htmlFor, children, extra }) {
   return (
-    <section className="space-y-2">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-base font-black tracking-wide uppercase">
+    <section className="space-y-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2.5 text-base font-black tracking-wide uppercase">
+          {paso && (
+            <span className="flex size-7 items-center justify-center rounded-full bg-yellow-400 text-sm text-neutral-950" aria-hidden>
+              {paso}
+            </span>
+          )}
           {htmlFor ? <label htmlFor={htmlFor}>{titulo}</label> : titulo}
         </h2>
         {extra}
@@ -115,8 +120,10 @@ export default function FormularioAvance() {
 
   if (subida.fase === 'listo') {
     return (
-      <div className="space-y-4 pt-6 text-center">
-        <CheckCircle2 className="mx-auto size-20 text-green-700" aria-hidden />
+      <div className="mx-auto max-w-lg space-y-4 rounded-2xl bg-white p-6 text-center shadow-sm ring-1 ring-neutral-200 lg:mt-10 lg:p-10">
+        <span className="mx-auto flex size-24 items-center justify-center rounded-full bg-green-50">
+          <CheckCircle2 className="size-16 text-green-700" aria-hidden />
+        </span>
         <h1 className="text-2xl font-black">Avance registrado</h1>
         <p className="text-neutral-700">
           {subida.fotos.length > 0 ? `${subida.fotos.length} foto(s) subidas correctamente.` : 'Nota guardada correctamente.'}
@@ -134,17 +141,23 @@ export default function FormularioAvance() {
   }
 
   return (
-    <form onSubmit={alEnviar} className="space-y-6" noValidate>
+    <form onSubmit={alEnviar} className="space-y-5 lg:space-y-6" noValidate>
       <div className="flex items-center gap-2">
         {!bloqueado && (
           <Link to="/" className="-ml-2 flex size-12 items-center justify-center rounded-xl active:bg-neutral-100" aria-label="Volver a la bitácora">
             <ArrowLeft className="size-7" />
           </Link>
         )}
-        <h1 className="text-2xl font-black">Nuevo avance</h1>
+        <div>
+          <p className="text-sm font-bold tracking-widest text-neutral-500 uppercase">Bitácora</p>
+          <h1 className="text-2xl font-black lg:text-4xl">Nuevo avance</h1>
+        </div>
       </div>
 
-      <Seccion titulo="¿Quién registra?" htmlFor="autor">
+      <div className="space-y-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6 lg:space-y-0">
+      <div className="space-y-4">
+
+      <Seccion paso={1} titulo="¿Quién registra?" htmlFor="autor">
         {editandoAutor ? (
           <input
             id="autor"
@@ -167,7 +180,7 @@ export default function FormularioAvance() {
         )}
       </Seccion>
 
-      <Seccion titulo="Obra" htmlFor="obra-form">
+      <Seccion paso={2} titulo="Obra" htmlFor="obra-form">
         {cargandoObras ? (
           <Skeleton className="h-12 w-full rounded-xl" />
         ) : errorObras ? (
@@ -200,10 +213,11 @@ export default function FormularioAvance() {
         )}
       </Seccion>
 
-      <Seccion titulo="Etapa / Rubro">
+      <Seccion paso={3} titulo="Etapa / Rubro">
         <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Etapa o rubro">
           {ETAPAS.map((e) => {
             const activa = etapa === e.valor
+            const Icono = e.icono
             return (
               <button
                 key={e.valor}
@@ -212,10 +226,11 @@ export default function FormularioAvance() {
                 aria-checked={activa}
                 disabled={bloqueado}
                 onClick={() => setEtapa(e.valor)}
-                className={`min-h-12 rounded-xl border-2 px-3 text-left text-[0.95rem] leading-tight font-bold ${
-                  activa ? 'border-neutral-950 bg-neutral-950 text-white' : 'border-neutral-300 bg-white active:bg-neutral-100'
+                className={`flex min-h-12 items-center gap-2 rounded-xl border-2 px-3 text-left text-[0.95rem] leading-tight font-bold transition ${
+                  activa ? 'border-neutral-950 bg-neutral-950 text-white' : 'border-neutral-200 bg-white hover:border-neutral-400 active:bg-neutral-100'
                 }`}
               >
+                <Icono className={`size-5 shrink-0 ${activa ? 'text-yellow-400' : 'text-neutral-500'}`} aria-hidden />
                 {e.etiqueta}
               </button>
             )
@@ -223,11 +238,7 @@ export default function FormularioAvance() {
         </div>
       </Seccion>
 
-      <Seccion titulo="Fotos">
-        <SelectorFotos fotos={subida.fotos} onAgregar={subida.agregarArchivos} onQuitar={subida.quitarFoto} bloqueado={bloqueado} />
-      </Seccion>
-
-      <Seccion titulo="Estado">
+      <Seccion paso={4} titulo="Estado">
         <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Estado del avance">
           {ESTADOS.map((e) => {
             const activo = estado === e.valor
@@ -241,7 +252,7 @@ export default function FormularioAvance() {
                 disabled={bloqueado}
                 onClick={() => setEstado(e.valor)}
                 className={`flex min-h-16 items-center gap-2 rounded-xl border-2 px-3 text-left leading-tight font-bold ${
-                  activo ? e.boton : 'border-neutral-300 bg-white active:bg-neutral-100'
+                  activo ? e.boton : 'border-neutral-200 bg-white hover:border-neutral-400 active:bg-neutral-100'
                 }`}
               >
                 <Icono className="size-6 shrink-0" aria-hidden />
@@ -252,7 +263,14 @@ export default function FormularioAvance() {
         </div>
       </Seccion>
 
-      <Seccion titulo="Comentario técnico" htmlFor="comentario" extra={<span className="text-sm text-neutral-500">{comentario.length}/4000</span>}>
+      </div>
+
+      <div className="space-y-4">
+      <Seccion paso={5} titulo="Fotos">
+        <SelectorFotos fotos={subida.fotos} onAgregar={subida.agregarArchivos} onQuitar={subida.quitarFoto} bloqueado={bloqueado} />
+      </Seccion>
+
+      <Seccion paso={6} titulo="Comentario técnico" htmlFor="comentario" extra={<span className="text-sm text-neutral-500">{comentario.length}/4000</span>}>
         <textarea
           id="comentario"
           value={comentario}
@@ -260,12 +278,12 @@ export default function FormularioAvance() {
           disabled={bloqueado}
           rows={4}
           placeholder="Ej.: Se completó revoque grueso en muros del dormitorio 2. Faltan mochetas."
-          className="w-full rounded-xl border-2 border-neutral-950 p-3 text-base placeholder:text-neutral-500 disabled:opacity-60"
+          className="w-full rounded-xl border-2 border-neutral-300 p-3 text-base placeholder:text-neutral-500 focus:border-neutral-950 disabled:opacity-60"
         />
         <p className="text-sm text-neutral-600">Visible para el cliente en los reportes.</p>
       </Seccion>
 
-      <section className="rounded-xl border-2 border-dashed border-amber-600 bg-amber-50">
+      <section className="rounded-2xl border-2 border-dashed border-amber-500 bg-amber-50">
         <button
           type="button"
           onClick={() => setMostrarNota((v) => !v)}
@@ -291,15 +309,26 @@ export default function FormularioAvance() {
           </div>
         )}
       </section>
+      </div>
+      </div>
 
       {/* Barra de acción pegada abajo (sticky): alcanzable con el pulgar y, a diferencia
           de "fixed", ocupa su lugar, así nunca tapa el final del formulario. */}
-      <div className="pb-safe sticky bottom-0 z-30 -mx-4 border-t-2 border-neutral-950 bg-white">
-        <div className="space-y-2 px-4 pt-3">
-          {(errorValidacion || subida.error) && <Aviso tipo="error">{errorValidacion || subida.error}</Aviso>}
+      <div className="pb-safe sticky bottom-0 z-30 -mx-4 border-t-2 border-neutral-950 bg-white lg:bottom-4 lg:mx-0 lg:rounded-2xl lg:border-2 lg:pb-0 lg:shadow-xl">
+        <div className="space-y-2 px-4 pt-3 lg:flex lg:items-center lg:gap-4 lg:space-y-0 lg:p-3">
+          {!bloqueado && !(errorValidacion || subida.error) && (
+            <p className="hidden flex-1 text-sm text-neutral-600 lg:block">
+              {subida.fotos.length} foto{subida.fotos.length !== 1 && 's'} · se comprimen antes de subir
+            </p>
+          )}
+          {(errorValidacion || subida.error) && (
+            <div className="lg:flex-1">
+              <Aviso tipo="error">{errorValidacion || subida.error}</Aviso>
+            </div>
+          )}
 
           {bloqueado && (
-            <div className="space-y-1">
+            <div className="space-y-1 lg:flex-1">
               <div className="flex justify-between text-sm font-bold">
                 <span>{subida.fase === 'guardando' ? 'Guardando registro…' : 'Subiendo fotos…'}</span>
                 <span>{subida.progresoTotal}%</span>
@@ -308,7 +337,7 @@ export default function FormularioAvance() {
             </div>
           )}
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 lg:w-72 lg:shrink-0">
             {bloqueado ? (
               <Boton tamano="lg" variante="secundario" icono={X} onClick={subida.cancelar} disabled={!puedeCancelar || subida.fase === 'guardando'} bloque>
                 Cancelar
