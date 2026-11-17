@@ -29,6 +29,26 @@
   background: repeating-linear-gradient(-45deg, #facc15 0 10px, #0a0a0a 10px 20px);
 }
 
+/* Campo de fecha que no desborda en Safari iOS (ancho mínimo intrínseco y estilo nativo) */
+@utility campo-fecha {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 3rem;
+  padding: 0.625rem 0.75rem;
+  line-height: 1.5;
+  border: 2px solid #0a0a0a;
+  border-radius: 0.75rem;
+  background: #fff;
+  font-size: 1rem;
+  -webkit-appearance: none;
+  appearance: none;
+  &::-webkit-date-and-time-value {
+    text-align: left;
+    min-height: 1.5em;
+  }
+}
+
 @utility scrollbar-none {
   scrollbar-width: none;
   &::-webkit-scrollbar {

@@ -9,9 +9,9 @@ import Aviso from '../../components/ui/Aviso'
 import { Skeleton } from '../../components/ui/Skeleton'
 
 const RANGOS = [
-  { dias: 7, etiqueta: 'Últimos 7 días' },
-  { dias: 15, etiqueta: 'Últimos 15 días' },
-  { dias: 30, etiqueta: 'Último mes' },
+  { dias: 7, etiqueta: '7 días' },
+  { dias: 15, etiqueta: '15 días' },
+  { dias: 30, etiqueta: '30 días' },
 ]
 
 function Interruptor({ marcado, onCambiar, titulo, descripcion }) {
@@ -137,7 +137,8 @@ export default function GeneradorReporte() {
         </h2>
         {cargandoObras ? <Skeleton className="h-12 w-full" /> : <SelectorObra proyectos={proyectos} valor={obra} onCambiar={setObra} />}
 
-        <div className="flex flex-wrap gap-2">
+        <p className="-mb-2 text-sm font-bold">Período (últimos…)</p>
+        <div className="grid grid-cols-3 gap-2">
           {RANGOS.map((r) => {
             const activo = desde === restarDias(hoy, r.dias - 1) && hasta === hoy
             return (
@@ -148,7 +149,7 @@ export default function GeneradorReporte() {
                   setDesde(restarDias(hoy, r.dias - 1))
                   setHasta(hoy)
                 }}
-                className={`min-h-11 rounded-full border-2 px-3.5 text-sm font-bold ${activo ? 'border-neutral-950 bg-neutral-950 text-white' : 'border-neutral-300'}`}
+                className={`min-h-11 rounded-full border-2 px-2 text-sm leading-tight font-bold ${activo ? 'border-neutral-950 bg-neutral-950 text-white' : 'border-neutral-300 hover:border-neutral-500'}`}
               >
                 {r.etiqueta}
               </button>
@@ -156,14 +157,16 @@ export default function GeneradorReporte() {
           })}
         </div>
 
+        {/* min-w-0 + campo-fecha: en Safari de iPhone el input date tiene un ancho mínimo
+            propio y se salía de la columna. */}
         <div className="grid grid-cols-2 gap-3">
-          <label className="space-y-1">
+          <label className="min-w-0 space-y-1">
             <span className="text-sm font-bold">Desde</span>
-            <input type="date" value={desde} max={hasta} onChange={(e) => setDesde(e.target.value)} className="min-h-12 w-full rounded-xl border-2 border-neutral-950 px-3" />
+            <input type="date" value={desde} max={hasta} onChange={(e) => setDesde(e.target.value)} className="campo-fecha" />
           </label>
-          <label className="space-y-1">
+          <label className="min-w-0 space-y-1">
             <span className="text-sm font-bold">Hasta</span>
-            <input type="date" value={hasta} min={desde} onChange={(e) => setHasta(e.target.value)} className="min-h-12 w-full rounded-xl border-2 border-neutral-950 px-3" />
+            <input type="date" value={hasta} min={desde} onChange={(e) => setHasta(e.target.value)} className="campo-fecha" />
           </label>
         </div>
 
