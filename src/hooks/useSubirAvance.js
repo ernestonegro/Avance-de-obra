@@ -101,7 +101,7 @@ export function useSubirAvance() {
    * que en paralelo) y luego registra el avance en una sola transacción.
    */
   const enviar = useCallback(
-    async ({ proyectoId, etapa, estado, comentario, notaInterna }) => {
+    async ({ proyectoId, autorNombre, etapa, estado, comentario, notaInterna }) => {
       setError('')
       setFase('enviando')
       const controlador = new AbortController()
@@ -134,6 +134,7 @@ export function useSubirAvance() {
       const { error: errorRpc } = await supabase.rpc('crear_avance', {
         p_id: avanceIdRef.current,
         p_proyecto_id: proyectoId,
+        p_autor_nombre: autorNombre,
         p_etapa: etapa,
         p_estado: estado,
         p_comentario: comentario,

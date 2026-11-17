@@ -4,8 +4,7 @@ import { supabase, mensajeError } from '../lib/supabase'
 const TAM_PAGINA = 15
 
 const SELECT_AVANCE = `
-  id, proyecto_id, etapa, estado, comentario, nota_interna, registrado_en, autor_id,
-  autor:perfiles!avances_autor_id_fkey ( nombre ),
+  id, proyecto_id, etapa, estado, comentario, nota_interna, registrado_en, autor_nombre,
   proyecto:proyectos ( nombre ),
   fotos:fotos_avance ( id, storage_path, thumb_path, ancho, alto, orden, tomada_en )
 `

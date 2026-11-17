@@ -7,7 +7,7 @@ import { fechaLarga, horaExacta } from '../../lib/fechas'
 /**
  * Visor a pantalla completa. Muestra fecha, hora exacta (hh:mm:ss) y autor del registro.
  * Navegación: deslizar, flechas en pantalla o teclado (← → Esc).
- * @param {{ fotos: any[], indice: number, avance: { registrado_en, autor, etapa, proyecto }, onCerrar: () => void }} props
+ * @param {{ fotos: any[], indice: number, avance: { registrado_en, autor_nombre, etapa, proyecto }, onCerrar: () => void }} props
  */
 export default function Lightbox({ fotos, indice: indiceInicial, avance, onCerrar }) {
   const [indice, setIndice] = useState(indiceInicial)
@@ -108,7 +108,7 @@ export default function Lightbox({ fotos, indice: indiceInicial, avance, onCerra
         <div className="flex items-center gap-2">
           <User className="size-5 shrink-0 text-yellow-400" aria-hidden />
           <dt className="sr-only">Autor</dt>
-          <dd>{avance.autor?.nombre ?? avance.autor ?? 'Sin autor'}</dd>
+          <dd>{avance.autor_nombre}</dd>
         </div>
         <div className="flex items-center gap-2">
           <Layers className="size-5 shrink-0 text-yellow-400" aria-hidden />

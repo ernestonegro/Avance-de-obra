@@ -58,10 +58,4 @@ export const ESTADOS = [
 export const etiquetaEtapa = (v) => ETAPAS.find((e) => e.valor === v)?.etiqueta ?? v
 export const estadoPorValor = (v) => ESTADOS.find((e) => e.valor === v) ?? ESTADOS[0]
 
-export const ROLES_PROYECTO = [
-  { valor: 'encargado', etiqueta: 'Encargado de obra' },
-  { valor: 'director', etiqueta: 'Director de proyecto' },
-  { valor: 'cliente', etiqueta: 'Cliente' },
-]
-
 export const MAX_FOTOS_POR_AVANCE = 12

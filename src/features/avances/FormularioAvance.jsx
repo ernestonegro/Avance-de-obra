@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Send, RotateCcw, Lock, ChevronDown, CheckCircle2, X } from 'lucide-react'
-import { useAuth } from '../../hooks/useAuth'
+import { Send, RotateCcw, Lock, ChevronDown, CheckCircle2, X, User } from 'lucide-react'
+import { useAutor } from '../../hooks/useAutor'
 import { useObraActiva, useProyectos } from '../../hooks/useProyectos'
 import { useSubirAvance } from '../../hooks/useSubirAvance'
 import { ETAPAS, ESTADOS } from '../../lib/constantes'
@@ -38,7 +38,8 @@ function Seccion({ titulo, htmlFor, children, extra }) {
 
 export default function FormularioAvance() {
   const navigate = useNavigate()
-  const { usuario, perfil } = useAuth()
+  const [autor, setAutor] = useAutor()
+  const [editandoAutor, setEditandoAutor] = useState(() => autor.trim().length < 2)
   const { proyectos, cargando: cargandoObras, error: errorObras } = useProyectos()
   const [obraActiva, setObraActiva] = useObraActiva()
   const subida = useSubirAvance()
@@ -50,16 +51,7 @@ export default function FormularioAvance() {
   const [mostrarNota, setMostrarNota] = useState(false)
   const [errorValidacion, setErrorValidacion] = useState('')
 
-  // Sólo obras donde el usuario puede cargar (director/encargado) o todas si es admin.
-  const obrasCargables = useMemo(
-    () =>
-      perfil?.rol === 'admin'
-        ? proyectos
-        : proyectos.filter((p) =>
-            p.proyecto_miembros.some((m) => m.usuario_id === usuario?.id && m.rol !== 'cliente'),
-          ),
-    [proyectos, perfil, usuario],
-  )
+  const obrasCargables = proyectos
 
   // Si hay una sola obra, o la recordada ya no está disponible, seleccionar automáticamente.
   useEffect(() => {
@@ -84,6 +76,10 @@ export default function FormularioAvance() {
   const alEnviar = async (e) => {
     e.preventDefault()
     setErrorValidacion('')
+    if (autor.trim().length < 2) {
+      setEditandoAutor(true)
+      return setErrorValidacion('Escribí tu nombre (mínimo 2 letras).')
+    }
     if (!obraActiva) return setErrorValidacion('Elegí la obra.')
     if (!etapa) return setErrorValidacion('Elegí la etapa / rubro.')
     if (subida.fotos.length === 0 && !comentario.trim()) {
@@ -94,7 +90,7 @@ export default function FormularioAvance() {
     } catch {
       /* ignorar */
     }
-    const ok = await subida.enviar({ proyectoId: obraActiva, etapa, estado, comentario, notaInterna })
+    const ok = await subida.enviar({ proyectoId: obraActiva, autorNombre: autor.trim(), etapa, estado, comentario, notaInterna })
     if (ok) window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -130,6 +126,29 @@ export default function FormularioAvance() {
     <form onSubmit={alEnviar} className="space-y-6" noValidate>
       <h1 className="text-2xl font-black">Nuevo avance</h1>
 
+      <Seccion titulo="¿Quién registra?" htmlFor="autor">
+        {editandoAutor ? (
+          <input
+            id="autor"
+            value={autor}
+            onChange={(e) => setAutor(e.target.value.slice(0, 80))}
+            onBlur={() => autor.trim().length >= 2 && setEditandoAutor(false)}
+            disabled={bloqueado}
+            autoComplete="name"
+            placeholder="Tu nombre y apellido"
+            className="min-h-12 w-full rounded-xl border-2 border-neutral-950 px-3 text-base font-bold placeholder:font-normal placeholder:text-neutral-500"
+          />
+        ) : (
+          <div className="flex min-h-12 items-center gap-2 rounded-xl border-2 border-neutral-300 pl-3">
+            <User className="size-5 shrink-0" aria-hidden />
+            <span className="min-w-0 flex-1 truncate font-bold">{autor}</span>
+            <button type="button" onClick={() => setEditandoAutor(true)} disabled={bloqueado} className="min-h-11 px-3 font-bold underline">
+              Cambiar
+            </button>
+          </div>
+        )}
+      </Seccion>
+
       <Seccion titulo="Obra" htmlFor="obra-form">
         {cargandoObras ? (
           <Skeleton className="h-12 w-full rounded-xl" />
@@ -137,9 +156,9 @@ export default function FormularioAvance() {
           <Aviso tipo="error">{errorObras}</Aviso>
         ) : obrasCargables.length === 0 ? (
           <Aviso tipo="info">
-            No tenés obras asignadas para cargar avances.{' '}
+            Todavía no hay obras cargadas.{' '}
             <Link to="/obras" className="font-bold underline">
-              Ver obras
+              Crear una obra
             </Link>
           </Aviso>
         ) : (

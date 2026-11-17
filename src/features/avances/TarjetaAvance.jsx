@@ -16,7 +16,7 @@ export default function TarjetaAvance({ avance, mostrarObra, onAbrirFoto }) {
             </time>
             <span className="inline-flex items-center gap-1">
               <User className="size-3.5" aria-hidden />
-              {avance.autor?.nombre ?? '—'}
+              {avance.autor_nombre}
             </span>
           </p>
           {mostrarObra && avance.proyecto && (

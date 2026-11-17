@@ -3,7 +3,7 @@ import { supabase, mensajeError } from '../lib/supabase'
 
 const CLAVE_OBRA_ACTIVA = 'bitacora:obra-activa'
 
-/** Obras a las que el usuario tiene acceso (RLS filtra por membresía). */
+/** Obras registradas. */
 export function useProyectos({ incluirInactivos = false } = {}) {
   const [proyectos, setProyectos] = useState([])
   const [cargando, setCargando] = useState(true)
@@ -14,7 +14,7 @@ export function useProyectos({ incluirInactivos = false } = {}) {
     setError('')
     let q = supabase
       .from('proyectos')
-      .select('id, nombre, direccion, cliente_nombre, fecha_inicio, zona_horaria, activo, proyecto_miembros(rol, usuario_id)')
+      .select('id, nombre, direccion, cliente_nombre, fecha_inicio, zona_horaria, activo, created_at')
       .order('nombre')
     if (!incluirInactivos) q = q.eq('activo', true)
     const { data, error } = await q

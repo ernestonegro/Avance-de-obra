@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { ClipboardList, Plus, FileText, Building2, LogOut, WifiOff } from 'lucide-react'
+import { ClipboardList, Plus, FileText, Building2, WifiOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useAuth } from '../../hooks/useAuth'
+import { useAutor } from '../../hooks/useAutor'
 
 function useOnline() {
   const [online, setOnline] = useState(navigator.onLine)
@@ -22,7 +22,7 @@ const enlace = ({ isActive }) =>
   `flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs font-bold ${isActive ? 'text-neutral-950' : 'text-neutral-500'}`
 
 export default function AppShell() {
-  const { perfil, cerrarSesion } = useAuth()
+  const [autor] = useAutor()
   const online = useOnline()
   const { pathname } = useLocation()
   const enFormulario = pathname === '/nuevo'
@@ -33,9 +33,8 @@ export default function AppShell() {
         <div className="flex min-h-14 items-center justify-between gap-3 px-4">
           <div className="min-w-0">
             <p className="text-lg leading-tight font-black tracking-tight">Bitácora de Obra</p>
-            {perfil && <p className="truncate text-sm text-neutral-600">{perfil.nombre}</p>}
+            {autor && <p className="truncate text-sm text-neutral-600">Registra: {autor}</p>}
           </div>
-          <div className="flex items-center">
           <NavLink
             to="/obras"
             className={({ isActive }) => `flex size-12 items-center justify-center rounded-xl active:bg-neutral-100 ${isActive ? 'bg-neutral-950 text-white' : ''}`}
@@ -43,14 +42,6 @@ export default function AppShell() {
           >
             <Building2 className="size-6" />
           </NavLink>
-          <button
-            onClick={cerrarSesion}
-            className="flex size-12 items-center justify-center rounded-xl active:bg-neutral-100"
-            aria-label="Cerrar sesión"
-          >
-            <LogOut className="size-6" />
-          </button>
-          </div>
         </div>
         {!online && (
           <div className="flex items-center gap-2 bg-red-700 px-4 py-2 text-sm font-bold text-white" role="status">

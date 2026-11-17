@@ -8,7 +8,8 @@ export const configuracionValida = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY)
 
 export const supabase = configuracionValida
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+      // Modo sin login: sólo anon key, sin sesión persistida.
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     })
   : null
 
@@ -23,8 +24,7 @@ export function mensajeError(error) {
   if (!error) return ''
   if (typeof navigator !== 'undefined' && !navigator.onLine) return 'Sin conexión. Revisá la señal e intentá de nuevo.'
   const msg = error.message || String(error)
-  if (error.code === '42501' || /row-level security|permission denied/i.test(msg)) return 'No tenés permisos para esta acción en esta obra.'
+  if (error.code === '42501' || /row-level security|permission denied/i.test(msg)) return 'Esta acción no está permitida.'
   if (/Failed to fetch|NetworkError|network/i.test(msg)) return 'Error de red. Revisá la señal e intentá de nuevo.'
-  if (/JWT|token/i.test(msg)) return 'Tu sesión expiró. Volvé a iniciar sesión.'
   return msg
 }

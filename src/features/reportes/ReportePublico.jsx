@@ -104,7 +104,7 @@ export default function ReportePublico() {
                 </div>
                 <p className="flex items-center gap-1.5 text-sm text-neutral-700">
                   <span className="font-bold text-neutral-950">{hora(a.registrado_en)} h</span>
-                  <User className="size-3.5" aria-hidden /> {a.autor}
+                  <User className="size-3.5" aria-hidden /> {a.autor_nombre}
                 </p>
                 {a.comentario && <p className="leading-snug whitespace-pre-line">{a.comentario}</p>}
                 {a.nota_interna && (
@@ -118,7 +118,7 @@ export default function ReportePublico() {
                     {a.fotos.map((f, i) => (
                       <li key={f.id} className="evitar-corte">
                         <button
-                          onClick={() => setVisor({ avance: { ...a, autor: { nombre: a.autor } }, indice: i })}
+                          onClick={() => setVisor({ avance: a, indice: i })}
                           className="block w-full overflow-hidden rounded-lg bg-neutral-200"
                           aria-label={`Ampliar foto ${i + 1}`}
                         >

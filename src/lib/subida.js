@@ -1,4 +1,4 @@
-import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY, BUCKET_FOTOS } from './supabase'
+import { SUPABASE_URL, SUPABASE_ANON_KEY, BUCKET_FOTOS } from './supabase'
 
 /*
  * Subida directa al endpoint REST de Supabase Storage usando XMLHttpRequest.
@@ -14,37 +14,35 @@ class ErrorSubida extends Error {
   }
 }
 
-async function tokenDeAcceso() {
-  const { data, error } = await supabase.auth.getSession()
-  if (error || !data.session) throw new ErrorSubida('Sesión expirada. Volvé a iniciar sesión.', { status: 401 })
-  return data.session.access_token
+function esDuplicado(xhr) {
+  if (xhr.status === 409) return true
+  try {
+    const c = JSON.parse(xhr.responseText)
+    return String(c.statusCode) === '409' || /already exists|Duplicate/i.test(c.error || c.message || '')
+  } catch {
+    return false
+  }
 }
 
 function subirUnaVez({ ruta, blob, onProgreso, signal }) {
-  return new Promise(async (resolve, reject) => {
-    let token
-    try {
-      token = await tokenDeAcceso()
-    } catch (e) {
-      return reject(e)
-    }
-
+  return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     const rutaCodificada = ruta.split('/').map(encodeURIComponent).join('/')
     xhr.open('POST', `${SUPABASE_URL}/storage/v1/object/${BUCKET_FOTOS}/${rutaCodificada}`)
-    xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    xhr.setRequestHeader('Authorization', `Bearer ${SUPABASE_ANON_KEY}`)
     xhr.setRequestHeader('apikey', SUPABASE_ANON_KEY)
     xhr.setRequestHeader('Content-Type', blob.type || 'image/jpeg')
     xhr.setRequestHeader('cache-control', 'max-age=31536000')
-    // Reintento sobre la misma ruta: sobrescribe una subida parcial previa.
-    xhr.setRequestHeader('x-upsert', 'true')
+    // Sin x-upsert: desde la app nunca se sobrescribe una foto existente.
     xhr.timeout = 120_000
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgreso?.(Math.round((e.loaded / e.total) * 100))
     }
     xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
+      // 409 = el archivo ya existe: un intento anterior llegó completo pero se perdió la
+      // respuesta por mala señal (Storage no guarda subidas parciales).
+      if ((xhr.status >= 200 && xhr.status < 300) || esDuplicado(xhr)) {
         onProgreso?.(100)
         resolve(ruta)
         return
