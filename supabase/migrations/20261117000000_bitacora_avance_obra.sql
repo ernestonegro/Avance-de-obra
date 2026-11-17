@@ -200,9 +200,6 @@ begin
   if jsonb_typeof(coalesce(p_fotos, 'null'::jsonb)) <> 'array' then
     raise exception 'p_fotos debe ser un array';
   end if;
-  if jsonb_array_length(p_fotos) > 12 then
-    raise exception 'Máximo 12 fotos por avance';
-  end if;
   if nullif(trim(coalesce(p_comentario, '')), '') is null and jsonb_array_length(p_fotos) = 0 then
     raise exception 'El avance necesita al menos una foto o un comentario';
   end if;

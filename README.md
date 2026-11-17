@@ -55,7 +55,7 @@ La app no tiene cuentas: cualquiera que tenga la URL puede **ver y agregar** obr
 ## Decisiones de diseño
 
 - **Subida resistente a 4G débil.** Cada foto se comprime en el teléfono (≈0,4 MB + miniatura ≈60 KB), se sube de a una por XHR (barra de progreso real) con 5 intentos y backoff, y si se corta la señal espera al evento `online`. El UUID del avance se genera en el cliente: un reintento no vuelve a subir lo que ya subió ni duplica registros (`crear_avance` es idempotente y transaccional).
-- **Alta sólo por RPC.** `avances` y `fotos_avance` no aceptan INSERT directo: `crear_avance` valida obra activa, nombre, rutas dentro de la carpeta del avance, que las fotos existan en Storage y un máximo de 12 fotos.
+- **Alta sólo por RPC.** `avances` y `fotos_avance` no aceptan INSERT directo: `crear_avance` valida obra activa, nombre, rutas dentro de la carpeta del avance, y que las fotos existan en Storage (sin límite de cantidad).
 - **Sin sobrescribir.** Storage sólo acepta archivos nuevos dentro de la carpeta de una obra existente; no hay políticas de update/delete. Un "ya existe" (409) en un reintento se toma como subida exitosa.
 - **Reportes al cliente.** `obtener_reporte_publico` quita en el servidor las notas internas y los estados problemáticos salvo que el reporte los incluya. Los enlaces pueden vencer o revocarse, y no se pueden reactivar.
 - **Fotos con CORS.** Los `<img>` usan `crossOrigin="anonymous"` para que el service worker cachee respuestas reales y no opacas (Chrome cuenta ~7 MB por cada respuesta opaca). Supabase Storage responde con `Access-Control-Allow-Origin: *`.

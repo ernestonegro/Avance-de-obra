@@ -92,4 +92,3 @@ export const etapaPorValor = (v) => ETAPAS.find((e) => e.valor === v) ?? ETAPAS[
 export const etiquetaEtapa = (v) => ETAPAS.find((e) => e.valor === v)?.etiqueta ?? v
 export const estadoPorValor = (v) => ESTADOS.find((e) => e.valor === v) ?? ESTADOS[0]
 
-export const MAX_FOTOS_POR_AVANCE = 12

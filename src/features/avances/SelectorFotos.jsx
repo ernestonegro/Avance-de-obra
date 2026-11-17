@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react'
 import { Camera, Images, X, Loader2, CheckCircle2, AlertTriangle, UploadCloud } from 'lucide-react'
-import { MAX_FOTOS_POR_AVANCE } from '../../lib/constantes'
 import { formatearBytes } from '../../lib/imagenes'
 
 const TEXTO_ESTADO = {
@@ -60,7 +59,6 @@ function MiniaturaFoto({ foto, onQuitar, bloqueado }) {
 export default function SelectorFotos({ fotos, onAgregar, onQuitar, bloqueado }) {
   const camaraRef = useRef(null)
   const galeriaRef = useRef(null)
-  const lleno = fotos.length >= MAX_FOTOS_POR_AVANCE
   const [aviso, setAviso] = useState('')
 
   const [arrastrando, setArrastrando] = useState(false)
@@ -73,20 +71,15 @@ export default function SelectorFotos({ fotos, onAgregar, onQuitar, bloqueado })
 
   const agregar = (elegidos) => {
     if (!elegidos.length) return
-    const disponibles = MAX_FOTOS_POR_AVANCE - fotos.length
-    const descartadas = onAgregar(elegidos.slice(0, disponibles))
-    const sobrantes = Math.max(0, elegidos.length - disponibles)
-    const partes = []
-    if (sobrantes) partes.push(`${sobrantes} foto(s) no se agregaron: máximo ${MAX_FOTOS_POR_AVANCE} por avance.`)
-    if (descartadas) partes.push(`${descartadas} archivo(s) no son imágenes y se ignoraron.`)
-    setAviso(partes.join(' '))
+    const descartadas = onAgregar(elegidos)
+    setAviso(descartadas ? `${descartadas} archivo(s) no son imágenes y se ignoraron.` : '')
   }
 
   // Escritorio: arrastrar y soltar archivos desde el explorador.
   const alSoltar = (e) => {
     e.preventDefault()
     setArrastrando(false)
-    if (bloqueado || lleno) return
+    if (bloqueado) return
     agregar(Array.from(e.dataTransfer.files || []))
   }
 
@@ -94,11 +87,11 @@ export default function SelectorFotos({ fotos, onAgregar, onQuitar, bloqueado })
     <div className="space-y-3">
       <button
         type="button"
-        disabled={bloqueado || lleno}
+        disabled={bloqueado}
         onClick={() => galeriaRef.current?.click()}
         onDragOver={(e) => {
           e.preventDefault()
-          if (!bloqueado && !lleno) setArrastrando(true)
+          if (!bloqueado) setArrastrando(true)
         }}
         onDragLeave={() => setArrastrando(false)}
         onDrop={alSoltar}
@@ -110,13 +103,13 @@ export default function SelectorFotos({ fotos, onAgregar, onQuitar, bloqueado })
           <UploadCloud className="size-6" aria-hidden />
         </span>
         <span className="font-black">{arrastrando ? 'Soltá las fotos acá' : 'Arrastrá fotos acá o hacé clic para elegir'}</span>
-        <span className="text-sm text-neutral-600">JPG, PNG o WebP · hasta {MAX_FOTOS_POR_AVANCE} por avance · se comprimen antes de subir</span>
+        <span className="text-sm text-neutral-600">JPG, PNG o WebP · sin límite de cantidad · se comprimen antes de subir</span>
       </button>
 
       <div className="grid grid-cols-2 gap-3 lg:hidden">
         <button
           type="button"
-          disabled={bloqueado || lleno}
+          disabled={bloqueado}
           onClick={() => camaraRef.current?.click()}
           className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl bg-neutral-950 text-base font-bold text-white active:bg-neutral-700 disabled:bg-neutral-400"
         >
@@ -124,7 +117,7 @@ export default function SelectorFotos({ fotos, onAgregar, onQuitar, bloqueado })
         </button>
         <button
           type="button"
-          disabled={bloqueado || lleno}
+          disabled={bloqueado}
           onClick={() => galeriaRef.current?.click()}
           className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl border-2 border-neutral-950 bg-white text-base font-bold active:bg-neutral-100 disabled:border-neutral-300 disabled:text-neutral-400"
         >
@@ -161,7 +154,7 @@ export default function SelectorFotos({ fotos, onAgregar, onQuitar, bloqueado })
             </ul>
           )}
           <p className="text-sm text-neutral-600">
-            {fotos.length} de {MAX_FOTOS_POR_AVANCE} fotos · se comprimen en el teléfono antes de subir
+            {fotos.length} foto{fotos.length !== 1 && 's'} · se comprimen en el teléfono antes de subir
           </p>
         </>
       )}
