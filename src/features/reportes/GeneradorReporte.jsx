@@ -137,7 +137,8 @@ export default function GeneradorReporte() {
         </h2>
         {cargandoObras ? <Skeleton className="h-12 w-full" /> : <SelectorObra proyectos={proyectos} valor={obra} onCambiar={setObra} />}
 
-        <p className="-mb-2 text-sm font-bold">Período (últimos…)</p>
+        <div className="space-y-1.5">
+        <p className="text-sm font-bold">Período (últimos…)</p>
         <div className="grid grid-cols-3 gap-2">
           {RANGOS.map((r) => {
             const activo = desde === restarDias(hoy, r.dias - 1) && hasta === hoy
@@ -155,6 +156,7 @@ export default function GeneradorReporte() {
               </button>
             )
           })}
+        </div>
         </div>
 
         {/* min-w-0 + campo-fecha: en Safari de iPhone el input date tiene un ancho mínimo
