@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { supabase, mensajeError } from '../lib/supabase'
+import { supabase, mensajeError, esErrorDeRed } from '../lib/supabase'
 import { comprimirFoto } from '../lib/imagenes'
-import { subirArchivo } from '../lib/subida'
+import { subirArchivo, esperarSenal } from '../lib/subida'
 
 /*
  * Estados por foto: pendiente → comprimiendo → subiendo → lista | error
@@ -12,6 +12,10 @@ import { subirArchivo } from '../lib/subida'
  */
 
 const nuevoId = () => crypto.randomUUID()
+const pausa = (ms) => new Promise((r) => setTimeout(r, ms))
+
+// Algunas galerías de Android entregan archivos sin tipo MIME: se aceptan por extensión.
+const esImagen = (a) => a.type.startsWith('image/') || (!a.type && /\.(jpe?g|png|webp|heic|heif|gif|bmp)$/i.test(a.name))
 
 export function useSubirAvance() {
   const [fotos, setFotos] = useState([])
@@ -19,6 +23,7 @@ export function useSubirAvance() {
   const [error, setError] = useState('')
   const avanceIdRef = useRef(nuevoId())
   const abortRef = useRef(null)
+  const enCursoRef = useRef(false) // evita dos envíos simultáneos por doble toque
   const fotosRef = useRef(fotos)
   fotosRef.current = fotos
 
@@ -29,24 +34,25 @@ export function useSubirAvance() {
     setFotos((prev) => prev.map((f) => (f.id === id ? { ...f, ...cambios } : f)))
   }, [])
 
+  /** Agrega imágenes y devuelve cuántos archivos se descartaron por no ser imágenes. */
   const agregarArchivos = useCallback((archivos) => {
-    const nuevas = Array.from(archivos)
-      .filter((a) => a.type.startsWith('image/'))
-      .map((archivo) => ({
-        id: nuevoId(),
-        archivo,
-        preview: URL.createObjectURL(archivo),
-        estado: 'pendiente',
-        progreso: 0,
-        comprimida: null,
-        subida: null,
-        error: '',
-      }))
+    const lista = Array.from(archivos)
+    const nuevas = lista.filter(esImagen).map((archivo) => ({
+      id: nuevoId(),
+      archivo,
+      preview: URL.createObjectURL(archivo),
+      estado: 'pendiente',
+      progreso: 0,
+      comprimida: null,
+      subida: null,
+      error: '',
+    }))
     setFotos((prev) => [...prev, ...nuevas])
-    return nuevas.length
+    return lista.length - nuevas.length
   }, [])
 
   const quitarFoto = useCallback((id) => {
+    if (enCursoRef.current) return
     setFotos((prev) => {
       const f = prev.find((x) => x.id === id)
       if (f) URL.revokeObjectURL(f.preview)
@@ -55,7 +61,7 @@ export function useSubirAvance() {
   }, [])
 
   const procesarFoto = useCallback(
-    async (foto, proyectoId, orden, signal) => {
+    async (foto, proyectoId, signal) => {
       if (foto.subida) return foto.subida
       let comprimida = foto.comprimida
       if (!comprimida) {
@@ -87,7 +93,6 @@ export function useSubirAvance() {
         ancho: comprimida.ancho,
         alto: comprimida.alto,
         bytes: comprimida.principal.size,
-        orden,
         tomada_en: comprimida.tomadaEn,
       }
       actualizarFoto(foto.id, { estado: 'lista', progreso: 100, subida })
@@ -102,52 +107,74 @@ export function useSubirAvance() {
    */
   const enviar = useCallback(
     async ({ proyectoId, autorNombre, etapa, estado, comentario, notaInterna }) => {
+      if (enCursoRef.current) return false
+      enCursoRef.current = true
       setError('')
       setFase('enviando')
       const controlador = new AbortController()
       abortRef.current = controlador
-      const lista = fotosRef.current
-      const subidas = []
-      let fallo = null
 
-      for (const [i, foto] of lista.entries()) {
-        try {
-          subidas.push(await procesarFoto(foto, proyectoId, i, controlador.signal))
-        } catch (e) {
-          fallo = fallo ?? e
-          actualizarFoto(foto.id, { estado: 'error', error: e.message || 'Error' })
+      try {
+        const lista = fotosRef.current
+        const subidas = []
+        let fallo = null
+
+        for (const [i, foto] of lista.entries()) {
           if (controlador.signal.aborted) break
+          try {
+            // El orden sale siempre de la posición actual, no de un intento previo.
+            subidas.push({ ...(await procesarFoto(foto, proyectoId, controlador.signal)), orden: i })
+          } catch (e) {
+            fallo = fallo ?? e
+            actualizarFoto(foto.id, { estado: 'error', error: e.message || 'Error' })
+          }
         }
-      }
 
-      if (fallo) {
-        setFase('error')
-        setError(
-          controlador.signal.aborted
-            ? 'Subida cancelada. Las fotos ya subidas se conservan.'
-            : `No se pudieron subir todas las fotos: ${mensajeError(fallo)}. Tocá "Reintentar": sólo se suben las que faltan.`,
-        )
-        return false
-      }
+        if (fallo || controlador.signal.aborted) {
+          setFase('error')
+          setError(
+            controlador.signal.aborted
+              ? 'Subida cancelada. Las fotos ya subidas se conservan: tocá "Reintentar" para seguir.'
+              : `No se pudieron subir todas las fotos: ${mensajeError(fallo)}. Tocá "Reintentar": sólo se suben las que faltan (o quitá la que falla).`,
+          )
+          return false
+        }
 
-      setFase('guardando')
-      const { error: errorRpc } = await supabase.rpc('crear_avance', {
-        p_id: avanceIdRef.current,
-        p_proyecto_id: proyectoId,
-        p_autor_nombre: autorNombre,
-        p_etapa: etapa,
-        p_estado: estado,
-        p_comentario: comentario,
-        p_nota_interna: notaInterna,
-        p_fotos: subidas,
-      })
-      if (errorRpc) {
-        setFase('error')
-        setError(`Las fotos se subieron pero no se pudo guardar el registro: ${mensajeError(errorRpc)}`)
-        return false
+        setFase('guardando')
+        const parametros = {
+          p_id: avanceIdRef.current,
+          p_proyecto_id: proyectoId,
+          p_autor_nombre: autorNombre,
+          p_etapa: etapa,
+          p_estado: estado,
+          p_comentario: comentario,
+          p_nota_interna: notaInterna,
+          p_fotos: subidas,
+        }
+        // Si se corta la red al guardar, se reintenta: la RPC es idempotente.
+        let errorRpc = null
+        for (let intento = 0; intento < 4; intento++) {
+          if (intento > 0) {
+            await esperarSenal()
+            await pausa(1000 * 2 ** (intento - 1))
+          }
+          ;({ error: errorRpc } = await supabase.rpc('crear_avance', parametros))
+          if (!errorRpc || !esErrorDeRed(errorRpc)) break
+        }
+        if (errorRpc) {
+          setFase('error')
+          setError(
+            subidas.length
+              ? `Las fotos se subieron pero no se pudo guardar el registro: ${mensajeError(errorRpc)}`
+              : `No se pudo guardar el registro: ${mensajeError(errorRpc)}`,
+          )
+          return false
+        }
+        setFase('listo')
+        return true
+      } finally {
+        enCursoRef.current = false
       }
-      setFase('listo')
-      return true
     },
     [actualizarFoto, procesarFoto],
   )

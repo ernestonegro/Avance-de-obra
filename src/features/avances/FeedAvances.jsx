@@ -4,6 +4,7 @@ import { Plus, SearchX } from 'lucide-react'
 import { useFeedAvances } from '../../hooks/useFeedAvances'
 import { useObraActiva, useProyectos } from '../../hooks/useProyectos'
 import { claveDia, tituloDia } from '../../lib/fechas'
+import { ETAPAS, ESTADOS } from '../../lib/constantes'
 import FiltrosFeed from './FiltrosFeed'
 import TarjetaAvance from './TarjetaAvance'
 import Lightbox from './Lightbox'
@@ -11,16 +12,23 @@ import Aviso from '../../components/ui/Aviso'
 import Boton from '../../components/ui/Boton'
 import { SkeletonTarjetaAvance } from '../../components/ui/Skeleton'
 
+const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+// Valores inválidos en la URL (enlace viejo o editado a mano) romperían la consulta.
+const obraValida = (v) => (v && RE_UUID.test(v) ? v : '')
+const etapaValida = (v) => (ETAPAS.some((e) => e.valor === v) ? v : '')
+const estadoValido = (v) => (ESTADOS.some((e) => e.valor === v) ? v : '')
+
 export default function FeedAvances() {
   const [params, setParams] = useSearchParams()
   const [obraActiva, setObraActiva] = useObraActiva()
   const { proyectos } = useProyectos()
 
-  // Filtros en la URL: el botón "atrás" y los enlaces compartidos los respetan.
+  // Filtros en la URL: sobreviven a recargar la página y se pueden compartir.
+  // Sin parámetro "obra" se usa la obra activa; "obra=" vacío significa "todas".
   const filtros = {
-    obra: params.get('obra') ?? obraActiva,
-    etapa: params.get('etapa') ?? '',
-    estado: params.get('estado') ?? '',
+    obra: params.has('obra') ? obraValida(params.get('obra')) : obraValida(obraActiva),
+    etapa: etapaValida(params.get('etapa')),
+    estado: estadoValido(params.get('estado')),
   }
 
   const cambiarFiltros = (nuevos) => {
@@ -52,11 +60,12 @@ export default function FeedAvances() {
   const centinela = useRef(null)
   useEffect(() => {
     const el = centinela.current
-    if (!el || !hayMas) return
+    // Con error no se auto-reintenta: evita un bucle de pedidos sin señal (queda el botón).
+    if (!el || !hayMas || error) return
     const obs = new IntersectionObserver((entradas) => entradas[0].isIntersecting && cargarMas(), { rootMargin: '600px' })
     obs.observe(el)
     return () => obs.disconnect()
-  }, [cargarMas, hayMas])
+  }, [cargarMas, hayMas, error])
 
   const [visor, setVisor] = useState(null)
   const abrirFoto = useCallback((avance, indice) => setVisor({ avance, indice }), [])

@@ -21,7 +21,7 @@ export default function FiltrosFeed({ proyectos, filtros, onCambiar, onRecargar,
   const set = (k) => (v) => onCambiar({ ...filtros, [k]: v })
 
   return (
-    <div className="sticky top-14 z-20 -mx-4 space-y-2 border-b-2 border-neutral-200 bg-white/95 px-4 pt-1 pb-3 backdrop-blur">
+    <div className="sticky top-[var(--alto-header,3.5rem)] z-20 -mx-4 space-y-2 border-b-2 border-neutral-200 bg-white/95 px-4 pt-1 pb-3 backdrop-blur">
       <div className="flex gap-2">
         <div className="min-w-0 flex-1">
           <SelectorObra id="filtro-obra" proyectos={proyectos} valor={filtros.obra} onCambiar={set('obra')} permitirTodas />

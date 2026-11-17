@@ -1,45 +1,58 @@
 const LOCALE = 'es-AR'
 
-const fmtDia = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-const fmtHora = new Intl.DateTimeFormat(LOCALE, { hour: '2-digit', minute: '2-digit', hour12: false })
-const fmtHoraExacta = new Intl.DateTimeFormat(LOCALE, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
-const fmtFechaCorta = new Intl.DateTimeFormat(LOCALE, { day: '2-digit', month: '2-digit', year: 'numeric' })
-
-/** Clave YYYY-MM-DD en hora local del dispositivo, para agrupar el feed. */
-export function claveDia(iso) {
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+// Formateadores cacheados por zona horaria (crear Intl.DateTimeFormat es costoso).
+const cache = new Map()
+function fmt(tipo, tz) {
+  const k = `${tipo}|${tz || ''}`
+  if (!cache.has(k)) {
+    const opciones = {
+      dia: { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' },
+      hora: { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
+      horaExacta: { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' },
+      fechaCorta: { day: '2-digit', month: '2-digit', year: 'numeric' },
+      clave: { year: 'numeric', month: '2-digit', day: '2-digit' },
+    }[tipo]
+    // en-CA formatea la clave como YYYY-MM-DD
+    cache.set(k, new Intl.DateTimeFormat(tipo === 'clave' ? 'en-CA' : LOCALE, { ...opciones, ...(tz && { timeZone: tz }) }))
+  }
+  return cache.get(k)
 }
 
-export function hoyISO() {
-  return claveDia(new Date().toISOString())
+const capitalizar = (t) => t.charAt(0).toUpperCase() + t.slice(1)
+
+/** Clave YYYY-MM-DD para agrupar por día (hora local del dispositivo o de la zona indicada). */
+export const claveDia = (iso, tz) => fmt('clave', tz).format(new Date(iso))
+
+export const hoyISO = (tz) => claveDia(new Date().toISOString(), tz)
+
+/** Resta días a una clave YYYY-MM-DD (aritmética de calendario, sin zona horaria). */
+export function restarDias(clave, dias) {
+  const [y, m, d] = clave.split('-').map(Number)
+  const f = new Date(Date.UTC(y, m - 1, d - dias))
+  return f.toISOString().slice(0, 10)
 }
 
-export function restarDias(fechaISO, dias) {
-  const [y, m, d] = fechaISO.split('-').map(Number)
-  const f = new Date(y, m - 1, d - dias)
-  return claveDia(f.toISOString())
+/** Fecha de calendario (YYYY-MM-DD) como Date al mediodía UTC: no se corre de día en ninguna zona. */
+const desdeClave = (clave) => {
+  const [y, m, d] = clave.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d, 12))
 }
 
-/** "Hoy", "Ayer" o "lunes, 17 de noviembre de 2026". */
-export function tituloDia(clave) {
-  const hoy = hoyISO()
+/** "Hoy", "Ayer" o "Lunes, 17 de noviembre de 2026". */
+export function tituloDia(clave, tz) {
+  const hoy = hoyISO(tz)
   if (clave === hoy) return 'Hoy'
   if (clave === restarDias(hoy, 1)) return 'Ayer'
-  const [y, m, d] = clave.split('-').map(Number)
-  const texto = fmtDia.format(new Date(y, m - 1, d))
-  return texto.charAt(0).toUpperCase() + texto.slice(1)
+  return capitalizar(fmt('dia', 'UTC').format(desdeClave(clave)))
 }
 
-export const hora = (iso) => fmtHora.format(new Date(iso))
-export const horaExacta = (iso) => fmtHoraExacta.format(new Date(iso))
-export const fechaCorta = (iso) => fmtFechaCorta.format(new Date(iso))
-export function fechaLarga(iso) {
-  const t = fmtDia.format(new Date(iso))
-  return t.charAt(0).toUpperCase() + t.slice(1)
-}
+/** Siempre la fecha completa (para reportes, donde "Hoy" pierde sentido al imprimir). */
+export const tituloDiaCompleto = (clave) => capitalizar(fmt('dia', 'UTC').format(desdeClave(clave)))
+
+export const hora = (iso, tz) => fmt('hora', tz).format(new Date(iso))
+export const horaExacta = (iso, tz) => fmt('horaExacta', tz).format(new Date(iso))
+export const fechaCorta = (iso, tz) => fmt('fechaCorta', tz).format(new Date(iso))
+export const fechaLarga = (iso, tz) => capitalizar(fmt('dia', tz).format(new Date(iso)))
+
 /** Para fechas "date" de Postgres (YYYY-MM-DD) sin corrimiento por zona horaria. */
-export function fechaCortaDesdeDia(clave) {
-  const [y, m, d] = clave.split('-').map(Number)
-  return fmtFechaCorta.format(new Date(y, m - 1, d))
-}
+export const fechaCortaDesdeDia = (clave) => fmt('fechaCorta', 'UTC').format(desdeClave(clave))

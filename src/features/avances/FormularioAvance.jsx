@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Send, RotateCcw, Lock, ChevronDown, CheckCircle2, X, User } from 'lucide-react'
+import { Send, RotateCcw, Lock, ChevronDown, CheckCircle2, X, User, ArrowLeft } from 'lucide-react'
 import { useAutor } from '../../hooks/useAutor'
 import { useObraActiva, useProyectos } from '../../hooks/useProyectos'
 import { useSubirAvance } from '../../hooks/useSubirAvance'
@@ -16,7 +16,8 @@ const CLAVE_ULTIMA_ETAPA = 'bitacora:ultima-etapa'
 
 function leerUltimaEtapa() {
   try {
-    return localStorage.getItem(CLAVE_ULTIMA_ETAPA) || ''
+    const v = localStorage.getItem(CLAVE_ULTIMA_ETAPA) || ''
+    return ETAPAS.some((e) => e.valor === v) ? v : ''
   } catch {
     return ''
   }
@@ -40,7 +41,7 @@ export default function FormularioAvance() {
   const navigate = useNavigate()
   const [autor, setAutor] = useAutor()
   const [editandoAutor, setEditandoAutor] = useState(() => autor.trim().length < 2)
-  const { proyectos, cargando: cargandoObras, error: errorObras } = useProyectos()
+  const { proyectos, cargando: cargandoObras, error: errorObras, recargar: recargarObras } = useProyectos()
   const [obraActiva, setObraActiva] = useObraActiva()
   const subida = useSubirAvance()
 
@@ -54,11 +55,12 @@ export default function FormularioAvance() {
   const obrasCargables = proyectos
 
   // Si hay una sola obra, o la recordada ya no está disponible, seleccionar automáticamente.
+  // Si la carga falló (sin señal) no se toca: se conserva la obra recordada.
   useEffect(() => {
-    if (cargandoObras) return
+    if (cargandoObras || errorObras) return
     const existe = obrasCargables.some((p) => p.id === obraActiva)
     if (!existe) setObraActiva(obrasCargables.length === 1 ? obrasCargables[0].id : '')
-  }, [cargandoObras, obrasCargables, obraActiva, setObraActiva])
+  }, [cargandoObras, errorObras, obrasCargables, obraActiva, setObraActiva])
 
   // Avisar si se intenta cerrar la pestaña con una subida en curso.
   useEffect(() => {
@@ -72,6 +74,15 @@ export default function FormularioAvance() {
   }, [subida.enviando])
 
   const bloqueado = subida.enviando
+
+  // "Cancelar" aparece donde estaba "Registrar": se habilita con demora para que un
+  // doble toque (guantes, apuro) no cancele la subida que acaba de empezar.
+  const [puedeCancelar, setPuedeCancelar] = useState(false)
+  useEffect(() => {
+    if (!subida.enviando) return setPuedeCancelar(false)
+    const t = setTimeout(() => setPuedeCancelar(true), 1500)
+    return () => clearTimeout(t)
+  }, [subida.enviando])
 
   const alEnviar = async (e) => {
     e.preventDefault()
@@ -124,7 +135,14 @@ export default function FormularioAvance() {
 
   return (
     <form onSubmit={alEnviar} className="space-y-6" noValidate>
-      <h1 className="text-2xl font-black">Nuevo avance</h1>
+      <div className="flex items-center gap-2">
+        {!bloqueado && (
+          <Link to="/" className="-ml-2 flex size-12 items-center justify-center rounded-xl active:bg-neutral-100" aria-label="Volver a la bitácora">
+            <ArrowLeft className="size-7" />
+          </Link>
+        )}
+        <h1 className="text-2xl font-black">Nuevo avance</h1>
+      </div>
 
       <Seccion titulo="¿Quién registra?" htmlFor="autor">
         {editandoAutor ? (
@@ -153,7 +171,16 @@ export default function FormularioAvance() {
         {cargandoObras ? (
           <Skeleton className="h-12 w-full rounded-xl" />
         ) : errorObras ? (
-          <Aviso tipo="error">{errorObras}</Aviso>
+          <Aviso
+            tipo="error"
+            accion={
+              <button type="button" onClick={recargarObras} className="min-h-11 px-2 font-bold underline">
+                Reintentar
+              </button>
+            }
+          >
+            {errorObras}
+          </Aviso>
         ) : obrasCargables.length === 0 ? (
           <Aviso tipo="info">
             Todavía no hay obras cargadas.{' '}
@@ -265,9 +292,10 @@ export default function FormularioAvance() {
         )}
       </section>
 
-      {/* Barra de acción fija: alcanzable con el pulgar */}
-      <div className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t-2 border-neutral-950 bg-white">
-        <div className="mx-auto max-w-2xl space-y-2 px-4 pt-3">
+      {/* Barra de acción pegada abajo (sticky): alcanzable con el pulgar y, a diferencia
+          de "fixed", ocupa su lugar, así nunca tapa el final del formulario. */}
+      <div className="pb-safe sticky bottom-0 z-30 -mx-4 border-t-2 border-neutral-950 bg-white">
+        <div className="space-y-2 px-4 pt-3">
           {(errorValidacion || subida.error) && <Aviso tipo="error">{errorValidacion || subida.error}</Aviso>}
 
           {bloqueado && (
@@ -282,7 +310,7 @@ export default function FormularioAvance() {
 
           <div className="flex gap-2">
             {bloqueado ? (
-              <Boton tamano="lg" variante="secundario" icono={X} onClick={subida.cancelar} disabled={subida.fase === 'guardando'} bloque>
+              <Boton tamano="lg" variante="secundario" icono={X} onClick={subida.cancelar} disabled={!puedeCancelar || subida.fase === 'guardando'} bloque>
                 Cancelar
               </Boton>
             ) : (

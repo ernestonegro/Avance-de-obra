@@ -30,9 +30,14 @@ function AccionesEnlace({ token, titulo }) {
   const [copiado, setCopiado] = useState(false)
   const url = urlReportePublico(token)
   const copiar = async () => {
-    await navigator.clipboard.writeText(url)
-    setCopiado(true)
-    setTimeout(() => setCopiado(false), 2000)
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopiado(true)
+      setTimeout(() => setCopiado(false), 2000)
+    } catch {
+      // Portapapeles bloqueado (permisos / navegador viejo): se muestra para copiar a mano.
+      window.prompt('Copiá el enlace:', url)
+    }
   }
   const compartir = () => navigator.share?.({ title: titulo, url }).catch(() => {})
   return (
@@ -74,6 +79,18 @@ export default function GeneradorReporte() {
   const [creando, setCreando] = useState(false)
   const [errorCrear, setErrorCrear] = useState('')
   const [nuevo, setNuevo] = useState(null)
+  const [errorRevocar, setErrorRevocar] = useState('')
+
+  const alRevocar = async (r) => {
+    if (!window.confirm(`¿Revocar "${r.titulo}"? El enlace deja de funcionar para siempre (no se puede reactivar).`)) return
+    setErrorRevocar('')
+    try {
+      await revocar(r.id)
+      if (nuevo?.id === r.id) setNuevo(null)
+    } catch (e) {
+      setErrorRevocar(e.message)
+    }
+  }
 
   useEffect(() => setNuevo(null), [obra])
 
@@ -177,7 +194,7 @@ export default function GeneradorReporte() {
       {obra && (
         <section className="space-y-3">
           <h2 className="text-base font-black uppercase">Enlaces generados</h2>
-          {error && <Aviso tipo="error">{error}</Aviso>}
+          {(error || errorRevocar) && <Aviso tipo="error">{error || errorRevocar}</Aviso>}
           {cargando && reportes.length === 0 && <Skeleton className="h-24 w-full" />}
           {!cargando && reportes.length === 0 && <p className="text-neutral-600">Todavía no hay reportes para esta obra.</p>}
           <ul className="space-y-3">
@@ -199,7 +216,7 @@ export default function GeneradorReporte() {
                   {!inactivo && (
                     <>
                       <AccionesEnlace token={r.token} titulo={r.titulo} />
-                      <Boton variante="fantasma" icono={Ban} className="text-red-700" onClick={() => revocar(r.id)}>
+                      <Boton variante="fantasma" icono={Ban} className="text-red-700" onClick={() => alRevocar(r)}>
                         Revocar enlace
                       </Boton>
                     </>

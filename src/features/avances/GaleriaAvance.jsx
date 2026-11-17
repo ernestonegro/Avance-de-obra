@@ -9,6 +9,7 @@ export default function GaleriaAvance({ fotos, onAbrir, maxVisibles = 4 }) {
       <button type="button" onClick={() => onAbrir(0)} className="block w-full overflow-hidden rounded-xl bg-neutral-200" aria-label="Ampliar foto">
         <img
           src={urlFoto(f.thumb_path)}
+          crossOrigin="anonymous"
           alt=""
           loading="lazy"
           decoding="async"
@@ -33,7 +34,7 @@ export default function GaleriaAvance({ fotos, onAbrir, maxVisibles = 4 }) {
               className="relative block w-full overflow-hidden rounded-lg bg-neutral-200"
               aria-label={ultima ? `Ver ${restantes} fotos más` : `Ampliar foto ${i + 1}`}
             >
-              <img src={urlFoto(f.thumb_path)} alt="" loading="lazy" decoding="async" className="aspect-square w-full object-cover" />
+              <img src={urlFoto(f.thumb_path)} crossOrigin="anonymous" alt="" loading="lazy" decoding="async" className="aspect-square w-full object-cover" />
               {ultima && (
                 <span className="absolute inset-0 flex items-center justify-center bg-black/65 text-3xl font-black text-white">+{restantes}</span>
               )}

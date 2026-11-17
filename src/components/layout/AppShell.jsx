@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { ClipboardList, Plus, FileText, Building2, WifiOff } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAutor } from '../../hooks/useAutor'
 
 function useOnline() {
@@ -27,9 +27,22 @@ export default function AppShell() {
   const { pathname } = useLocation()
   const enFormulario = pathname === '/nuevo'
 
+  // Altura real del encabezado (varía con el notch y el aviso "sin conexión") como
+  // variable CSS: la usan los elementos sticky de debajo para no quedar tapados.
+  const headerRef = useRef(null)
+  useEffect(() => {
+    const el = headerRef.current
+    if (!el) return
+    const publicar = () => document.documentElement.style.setProperty('--alto-header', `${el.offsetHeight}px`)
+    publicar()
+    const ro = new ResizeObserver(publicar)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col">
-      <header className="pt-safe sticky top-0 z-30 border-b-2 border-neutral-950 bg-white">
+      <header ref={headerRef} className="pt-safe sticky top-0 z-30 border-b-2 border-neutral-950 bg-white">
         <div className="flex min-h-14 items-center justify-between gap-3 px-4">
           <div className="min-w-0">
             <p className="text-lg leading-tight font-black tracking-tight">Bitácora de Obra</p>
@@ -50,7 +63,7 @@ export default function AppShell() {
         )}
       </header>
 
-      <main className={`flex-1 px-4 pt-4 ${enFormulario ? 'pb-40' : 'pb-28'}`}>
+      <main className={`flex-1 px-4 pt-4 ${enFormulario ? '' : 'pb-28'}`}>
         <Outlet />
       </main>
 

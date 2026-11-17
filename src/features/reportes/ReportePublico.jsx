@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Printer, Lock, MapPin, User } from 'lucide-react'
+import { Printer, Lock, MapPin, User, Loader2 } from 'lucide-react'
 import { supabase, mensajeError, urlFoto } from '../../lib/supabase'
 import { etiquetaEtapa } from '../../lib/constantes'
-import { claveDia, fechaCortaDesdeDia, fechaLarga, hora, tituloDia } from '../../lib/fechas'
+import { claveDia, fechaCortaDesdeDia, fechaLarga, hora, tituloDiaCompleto } from '../../lib/fechas'
 import BadgeEstado from '../../components/ui/BadgeEstado'
 import Lightbox from '../avances/Lightbox'
 import { Skeleton, SkeletonTarjetaAvance } from '../../components/ui/Skeleton'
@@ -16,6 +16,7 @@ export default function ReportePublico() {
   const [estado, setEstado] = useState('cargando') // cargando | ok | no-encontrado | error
   const [error, setError] = useState('')
   const [visor, setVisor] = useState(null)
+  const [preparando, setPreparando] = useState(false)
 
   useEffect(() => {
     let activo = true
@@ -36,15 +37,30 @@ export default function ReportePublico() {
     }
   }, [token])
 
+  // Agrupado en la zona horaria de la obra: coincide con el rango que filtra el servidor,
+  // aunque el cliente abra el enlace desde otro país.
+  const tz = datos?.proyecto.zona_horaria
   const grupos = useMemo(() => {
     const mapa = new Map()
     for (const a of datos?.avances ?? []) {
-      const k = claveDia(a.registrado_en)
+      const k = claveDia(a.registrado_en, tz)
       if (!mapa.has(k)) mapa.set(k, [])
       mapa.get(k).push(a)
     }
     return [...mapa.entries()]
-  }, [datos])
+  }, [datos, tz])
+
+  // Antes de imprimir, esperar a que todas las fotos estén cargadas: si no, salen en blanco en el PDF.
+  const imprimir = async () => {
+    setPreparando(true)
+    const imgs = [...document.querySelectorAll('img[data-foto-reporte]')]
+    await Promise.race([
+      Promise.all(imgs.map((img) => (img.complete ? null : img.decode().catch(() => {})))),
+      new Promise((r) => setTimeout(r, 20_000)), // con señal mala, no bloquear para siempre
+    ])
+    setPreparando(false)
+    window.print()
+  }
 
   if (estado === 'cargando') {
     return (
@@ -81,10 +97,12 @@ export default function ReportePublico() {
           Período: {fechaCortaDesdeDia(reporte.fecha_desde)} al {fechaCortaDesdeDia(reporte.fecha_hasta)} · {avances.length} registros · {totalFotos} fotos
         </p>
         <button
-          onClick={() => window.print()}
-          className="no-imprimir mt-2 inline-flex min-h-12 items-center gap-2 rounded-xl bg-neutral-950 px-5 font-bold text-white active:bg-neutral-700"
+          onClick={imprimir}
+          disabled={preparando}
+          className="no-imprimir mt-2 inline-flex min-h-12 items-center gap-2 rounded-xl bg-neutral-950 px-5 font-bold text-white active:bg-neutral-700 disabled:bg-neutral-500"
         >
-          <Printer className="size-5" aria-hidden /> Imprimir / Guardar PDF
+          {preparando ? <Loader2 className="size-5 animate-spin" aria-hidden /> : <Printer className="size-5" aria-hidden />}
+          {preparando ? 'Cargando fotos…' : 'Imprimir / Guardar PDF'}
         </button>
       </header>
 
@@ -93,7 +111,7 @@ export default function ReportePublico() {
       {grupos.map(([dia, items]) => (
         <section key={dia} className="mt-6">
           <h2 className="mb-3 bg-neutral-950 px-3 py-1.5 text-sm font-black tracking-wide text-white uppercase print:bg-neutral-200 print:text-neutral-950">
-            {tituloDia(dia) === 'Hoy' || tituloDia(dia) === 'Ayer' ? fechaLarga(items[0].registrado_en) : tituloDia(dia)}
+            {tituloDiaCompleto(dia)}
           </h2>
           <div className="space-y-4">
             {items.map((a) => (
@@ -103,7 +121,7 @@ export default function ReportePublico() {
                   <BadgeEstado estado={a.estado} />
                 </div>
                 <p className="flex items-center gap-1.5 text-sm text-neutral-700">
-                  <span className="font-bold text-neutral-950">{hora(a.registrado_en)} h</span>
+                  <span className="font-bold text-neutral-950">{hora(a.registrado_en, tz)} h</span>
                   <User className="size-3.5" aria-hidden /> {a.autor_nombre}
                 </p>
                 {a.comentario && <p className="leading-snug whitespace-pre-line">{a.comentario}</p>}
@@ -122,8 +140,15 @@ export default function ReportePublico() {
                           className="block w-full overflow-hidden rounded-lg bg-neutral-200"
                           aria-label={`Ampliar foto ${i + 1}`}
                         >
-                          {/* En pantalla, miniatura; al imprimir se usa la misma (suficiente para A4 a 3 columnas). */}
-                          <img src={urlFoto(f.thumb_path)} alt="" loading="lazy" className="aspect-[4/3] w-full object-cover" />
+                          {/* Miniatura (≈480px): suficiente para A4 a 3 columnas. Sin loading="lazy":
+                              las fotos fuera de pantalla no se cargarían y saldrían en blanco al imprimir. */}
+                          <img
+                            data-foto-reporte
+                            src={urlFoto(f.thumb_path)}
+                            crossOrigin="anonymous"
+                            alt=""
+                            className="aspect-[4/3] w-full object-cover"
+                          />
                         </button>
                       </li>
                     ))}
@@ -136,10 +161,12 @@ export default function ReportePublico() {
       ))}
 
       <footer className="mt-10 text-sm text-neutral-500">
-        Generado el {fechaLarga(reporte.generado_en)} · Documento de solo lectura
+        Generado el {fechaLarga(reporte.generado_en, tz).toLowerCase()} · Documento de solo lectura
       </footer>
 
-      {visor && <Lightbox fotos={visor.avance.fotos} indice={visor.indice} avance={visor.avance} onCerrar={() => setVisor(null)} />}
+      {visor && (
+        <Lightbox fotos={visor.avance.fotos} indice={visor.indice} avance={visor.avance} zonaHoraria={tz} onCerrar={() => setVisor(null)} />
+      )}
     </div>
   )
 }

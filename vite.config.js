@@ -32,12 +32,14 @@ export default defineConfig({
         runtimeCaching: [
           {
             // Fotos públicas de Supabase Storage: inmutables (ruta con UUID) → cache-first.
+            // Los <img> usan crossOrigin="anonymous": así las respuestas son CORS (status 200)
+            // y no opacas, que Chrome contabiliza con ~7 MB de relleno cada una.
             urlPattern: ({ url }) => url.pathname.startsWith('/storage/v1/object/public/fotos-avance/'),
             handler: 'CacheFirst',
             options: {
               cacheName: 'fotos-obra',
               expiration: { maxEntries: 400, maxAgeSeconds: 60 * 60 * 24 * 30 },
-              cacheableResponse: { statuses: [0, 200] },
+              cacheableResponse: { statuses: [200] },
             },
           },
         ],

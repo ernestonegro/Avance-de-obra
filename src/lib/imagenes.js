@@ -1,4 +1,7 @@
 import imageCompression from 'browser-image-compression'
+// Copia local del script del worker: por defecto la librería lo baja de jsdelivr antes
+// de comprimir (lento con señal débil, imposible offline). Así queda en el precache del PWA.
+import libURL from 'browser-image-compression/dist/browser-image-compression.js?url'
 
 // Versión principal: suficiente para ver detalles técnicos (fisuras, niveles, cañerías).
 const OPCIONES_FOTO = {
@@ -7,6 +10,7 @@ const OPCIONES_FOTO = {
   initialQuality: 0.82,
   fileType: 'image/jpeg', // JPEG: Safari iOS no codifica WebP en canvas de forma confiable
   useWebWorker: true,
+  libURL,
   preserveExif: false,
 }
 
@@ -17,6 +21,7 @@ const OPCIONES_MINIATURA = {
   initialQuality: 0.7,
   fileType: 'image/jpeg',
   useWebWorker: true,
+  libURL,
 }
 
 async function dimensiones(blob) {
@@ -48,13 +53,21 @@ async function dimensiones(blob) {
  * @param {(pct:number)=>void} [onProgreso] 0–100
  */
 export async function comprimirFoto(archivo, onProgreso) {
-  if (!archivo.type.startsWith('image/')) {
-    throw new Error(`"${archivo.name}" no es una imagen`)
+  let principal
+  try {
+    principal = await imageCompression(archivo, {
+      ...OPCIONES_FOTO,
+      onProgress: (p) => onProgreso?.(p * 0.75),
+    })
+  } catch {
+    // Típico: HEIC/HEIF elegido desde Android (Chrome no puede decodificarlo).
+    const heic = /hei[cf]/i.test(archivo.type) || /\.hei[cf]$/i.test(archivo.name)
+    throw new Error(
+      heic
+        ? 'Formato HEIC no compatible con este navegador. Sacala con "Sacar foto" o configurá la cámara en JPG / "Más compatible".'
+        : `No se pudo leer la imagen "${archivo.name}". Quitala y probá con otra.`,
+    )
   }
-  const principal = await imageCompression(archivo, {
-    ...OPCIONES_FOTO,
-    onProgress: (p) => onProgreso?.(p * 0.75),
-  })
   const miniatura = await imageCompression(principal, {
     ...OPCIONES_MINIATURA,
     onProgress: (p) => onProgreso?.(75 + p * 0.25),

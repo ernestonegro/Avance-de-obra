@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, BUCKET_FOTOS } from './supabase'
+import { SUPABASE_URL, BUCKET_FOTOS, headersApi } from './supabase'
 
 /*
  * Subida directa al endpoint REST de Supabase Storage usando XMLHttpRequest.
@@ -29,8 +29,7 @@ function subirUnaVez({ ruta, blob, onProgreso, signal }) {
     const xhr = new XMLHttpRequest()
     const rutaCodificada = ruta.split('/').map(encodeURIComponent).join('/')
     xhr.open('POST', `${SUPABASE_URL}/storage/v1/object/${BUCKET_FOTOS}/${rutaCodificada}`)
-    xhr.setRequestHeader('Authorization', `Bearer ${SUPABASE_ANON_KEY}`)
-    xhr.setRequestHeader('apikey', SUPABASE_ANON_KEY)
+    for (const [k, v] of Object.entries(headersApi())) xhr.setRequestHeader(k, v)
     xhr.setRequestHeader('Content-Type', blob.type || 'image/jpeg')
     xhr.setRequestHeader('cache-control', 'max-age=31536000')
     // Sin x-upsert: desde la app nunca se sobrescribe una foto existente.
@@ -59,7 +58,7 @@ function subirUnaVez({ ruta, blob, onProgreso, signal }) {
     }
     xhr.onerror = () => reject(new ErrorSubida('Se cortó la conexión durante la subida', { reintentable: true }))
     xhr.ontimeout = () => reject(new ErrorSubida('La subida tardó demasiado (señal débil)', { reintentable: true }))
-    xhr.onabort = () => reject(new ErrorSubida('Subida cancelada'))
+    xhr.onabort = () => reject(cancelada())
 
     if (signal) {
       if (signal.aborted) return xhr.abort()
@@ -69,8 +68,11 @@ function subirUnaVez({ ruta, blob, onProgreso, signal }) {
   })
 }
 
+const cancelada = () => new ErrorSubida('Subida cancelada')
+
 function esperar(ms, signal) {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(cancelada())
     const t = setTimeout(resolve, ms)
     signal?.addEventListener('abort', () => {
       clearTimeout(t)
@@ -80,6 +82,7 @@ function esperar(ms, signal) {
 }
 
 function esperarConexion(signal) {
+  if (signal?.aborted) return Promise.reject(cancelada())
   if (navigator.onLine) return Promise.resolve()
   return new Promise((resolve, reject) => {
     const alVolver = () => resolve()
@@ -95,6 +98,10 @@ function esperarConexion(signal) {
  * Sube un blob con reintentos y backoff exponencial (1s, 2s, 4s, 8s…).
  * Si el dispositivo está offline, espera a recuperar señal antes de reintentar.
  */
+export async function esperarSenal(signal) {
+  return esperarConexion(signal)
+}
+
 export async function subirArchivo({ ruta, blob, onProgreso, signal, intentos = 5 }) {
   let ultimoError
   for (let i = 0; i < intentos; i++) {

@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Camera, Images, X, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { MAX_FOTOS_POR_AVANCE } from '../../lib/constantes'
 import { formatearBytes } from '../../lib/imagenes'
@@ -61,11 +61,18 @@ export default function SelectorFotos({ fotos, onAgregar, onQuitar, bloqueado })
   const camaraRef = useRef(null)
   const galeriaRef = useRef(null)
   const lleno = fotos.length >= MAX_FOTOS_POR_AVANCE
+  const [aviso, setAviso] = useState('')
 
   const alElegir = (e) => {
-    const disponibles = MAX_FOTOS_POR_AVANCE - fotos.length
-    onAgregar(Array.from(e.target.files || []).slice(0, disponibles))
+    const elegidos = Array.from(e.target.files || [])
     e.target.value = '' // permite volver a elegir el mismo archivo
+    const disponibles = MAX_FOTOS_POR_AVANCE - fotos.length
+    const descartadas = onAgregar(elegidos.slice(0, disponibles))
+    const sobrantes = Math.max(0, elegidos.length - disponibles)
+    const partes = []
+    if (sobrantes) partes.push(`${sobrantes} foto(s) no se agregaron: máximo ${MAX_FOTOS_POR_AVANCE} por avance.`)
+    if (descartadas) partes.push(`${descartadas} archivo(s) no son imágenes y se ignoraron.`)
+    setAviso(partes.join(' '))
   }
 
   return (
@@ -93,6 +100,12 @@ export default function SelectorFotos({ fotos, onAgregar, onQuitar, bloqueado })
       <input ref={camaraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={alElegir} />
       <input ref={galeriaRef} type="file" accept="image/*" multiple className="hidden" onChange={alElegir} />
 
+      {aviso && (
+        <p role="status" className="rounded-lg border-2 border-orange-500 bg-orange-50 p-2 text-sm font-bold text-orange-950">
+          {aviso}
+        </p>
+      )}
+
       {fotos.length > 0 && (
         <>
           <ul className="grid grid-cols-3 gap-2">
@@ -100,6 +113,17 @@ export default function SelectorFotos({ fotos, onAgregar, onQuitar, bloqueado })
               <MiniaturaFoto key={f.id} foto={f} onQuitar={onQuitar} bloqueado={bloqueado} />
             ))}
           </ul>
+          {fotos.some((f) => f.estado === 'error' && f.error) && (
+            <ul className="space-y-1 text-sm font-bold text-red-800">
+              {fotos.map((f, i) =>
+                f.estado === 'error' && f.error ? (
+                  <li key={f.id}>
+                    Foto {i + 1}: {f.error}
+                  </li>
+                ) : null,
+              )}
+            </ul>
+          )}
           <p className="text-sm text-neutral-600">
             {fotos.length} de {MAX_FOTOS_POR_AVANCE} fotos · se comprimen en el teléfono antes de subir
           </p>

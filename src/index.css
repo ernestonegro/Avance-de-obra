@@ -40,6 +40,12 @@
   body {
     font-size: 11pt;
   }
+  /* Sin esto el navegador no imprime fondos: los badges (texto blanco sobre color)
+     y los encabezados de día quedarían ilegibles en el PDF. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
   .no-imprimir {
     display: none !important;
   }

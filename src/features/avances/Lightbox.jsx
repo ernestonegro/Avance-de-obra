@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, X, Clock, User, Camera, Layers } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, Clock, User, Camera, Layers, WifiOff } from 'lucide-react'
 import { urlFoto } from '../../lib/supabase'
 import { etiquetaEtapa } from '../../lib/constantes'
 import { fechaLarga, horaExacta } from '../../lib/fechas'
@@ -7,11 +7,15 @@ import { fechaLarga, horaExacta } from '../../lib/fechas'
 /**
  * Visor a pantalla completa. Muestra fecha, hora exacta (hh:mm:ss) y autor del registro.
  * Navegación: deslizar, flechas en pantalla o teclado (← → Esc).
- * @param {{ fotos: any[], indice: number, avance: { registrado_en, autor_nombre, etapa, proyecto }, onCerrar: () => void }} props
+ * @param {{ fotos: any[], indice: number, avance: { registrado_en, autor_nombre, etapa, proyecto }, onCerrar: () => void, zonaHoraria?: string }} props
  */
-export default function Lightbox({ fotos, indice: indiceInicial, avance, onCerrar }) {
-  const [indice, setIndice] = useState(indiceInicial)
+export default function Lightbox({ fotos, indice: indiceInicial, avance, onCerrar, zonaHoraria }) {
+  const [indice, setIndice] = useState(Math.min(indiceInicial, Math.max(fotos.length - 1, 0)))
   const [cargada, setCargada] = useState(false)
+  const [fallo, setFallo] = useState(false)
+  // Ref: si el padre pasa una función nueva en cada render, el efecto no se re-ejecuta.
+  const onCerrarRef = useRef(onCerrar)
+  onCerrarRef.current = onCerrar
   const toqueX = useRef(null)
   const cerrarRef = useRef(null)
   const foto = fotos[indice]
@@ -20,6 +24,7 @@ export default function Lightbox({ fotos, indice: indiceInicial, avance, onCerra
   const ir = useCallback(
     (delta) => {
       setCargada(false)
+      setFallo(false)
       setIndice((i) => (i + delta + total) % total)
     },
     [total],
@@ -31,7 +36,7 @@ export default function Lightbox({ fotos, indice: indiceInicial, avance, onCerra
     document.body.style.overflow = 'hidden'
     cerrarRef.current?.focus()
     const alTeclear = (e) => {
-      if (e.key === 'Escape') onCerrar()
+      if (e.key === 'Escape') onCerrarRef.current()
       if (e.key === 'ArrowRight' && total > 1) ir(1)
       if (e.key === 'ArrowLeft' && total > 1) ir(-1)
     }
@@ -41,12 +46,13 @@ export default function Lightbox({ fotos, indice: indiceInicial, avance, onCerra
       window.removeEventListener('keydown', alTeclear)
       anterior?.focus?.()
     }
-  }, [ir, onCerrar, total])
+  }, [ir, total])
 
   // Precargar la siguiente foto: al deslizar ya está en caché.
   useEffect(() => {
     if (total > 1) {
       const img = new Image()
+      img.crossOrigin = 'anonymous' // mismo modo que el <img> visible: comparten caché
       img.src = urlFoto(fotos[(indice + 1) % total].storage_path)
     }
   }, [indice, fotos, total])
@@ -64,24 +70,38 @@ export default function Lightbox({ fotos, indice: indiceInicial, avance, onCerra
   if (!foto) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black text-white" role="dialog" aria-modal="true" aria-label="Foto ampliada">
+    <div className="no-imprimir fixed inset-0 z-50 flex flex-col bg-black text-white" role="dialog" aria-modal="true" aria-label="Foto ampliada">
       <div className="pt-safe flex items-center justify-between gap-2 px-2">
         <span className="px-2 text-base font-bold" aria-live="polite">
           {total > 1 ? `${indice + 1} / ${total}` : ''}
         </span>
-        <button ref={cerrarRef} onClick={onCerrar} className="flex size-14 items-center justify-center rounded-full active:bg-white/20" aria-label="Cerrar">
+        <button ref={cerrarRef} onClick={() => onCerrarRef.current()} className="flex size-14 items-center justify-center rounded-full active:bg-white/20" aria-label="Cerrar">
           <X className="size-8" />
         </button>
       </div>
 
       <div className="relative flex min-h-0 flex-1 items-center justify-center" onTouchStart={alTocar} onTouchEnd={alSoltar}>
         {/* Miniatura (ya en caché) como placeholder mientras carga la versión grande */}
-        {!cargada && <img src={urlFoto(foto.thumb_path)} alt="" className="absolute max-h-full max-w-full object-contain opacity-60 blur-sm" />}
+        {!cargada && (
+          <img
+            src={urlFoto(foto.thumb_path)}
+            crossOrigin="anonymous"
+            alt=""
+            className={`absolute max-h-full max-w-full object-contain ${fallo ? '' : 'opacity-60 blur-sm'}`}
+          />
+        )}
+        {fallo && (
+          <p className="absolute top-2 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/80 px-3 py-1.5 text-sm font-bold whitespace-nowrap">
+            <WifiOff className="size-4" aria-hidden /> Sin señal: mostrando miniatura
+          </p>
+        )}
         <img
           key={foto.id}
           src={urlFoto(foto.storage_path)}
           alt={`Foto ${indice + 1} de ${etiquetaEtapa(avance.etapa)}`}
+          crossOrigin="anonymous"
           onLoad={() => setCargada(true)}
+          onError={() => setFallo(true)}
           className={`relative max-h-full max-w-full object-contain transition-opacity ${cargada ? 'opacity-100' : 'opacity-0'}`}
           draggable={false}
         />
@@ -102,7 +122,7 @@ export default function Lightbox({ fotos, indice: indiceInicial, avance, onCerra
           <Clock className="size-5 shrink-0 text-yellow-400" aria-hidden />
           <dt className="sr-only">Registrado</dt>
           <dd>
-            {fechaLarga(avance.registrado_en)} · {horaExacta(avance.registrado_en)} h
+            {fechaLarga(avance.registrado_en, zonaHoraria)} · {horaExacta(avance.registrado_en, zonaHoraria)} h
           </dd>
         </div>
         <div className="flex items-center gap-2">
@@ -122,7 +142,7 @@ export default function Lightbox({ fotos, indice: indiceInicial, avance, onCerra
           <div className="flex items-center gap-2 text-neutral-300">
             <Camera className="size-5 shrink-0" aria-hidden />
             <dt className="sr-only">Foto tomada</dt>
-            <dd>Foto tomada {horaExacta(foto.tomada_en)} h</dd>
+            <dd>Foto tomada {horaExacta(foto.tomada_en, zonaHoraria)} h</dd>
           </div>
         )}
       </dl>

@@ -15,7 +15,7 @@ La app no tiene cuentas: cualquiera que tenga la URL puede **ver y agregar** obr
 1. **Supabase**: en el SQL Editor, ejecutá `supabase/migrations/20261117000000_bitacora_avance_obra.sql`
    (o `supabase db push`). Crea tipos, tablas, RLS, RPCs y el bucket `fotos-avance`.
    *Si ya habías corrido la versión anterior (con login)*, usá un proyecto Supabase nuevo o borrá antes las tablas, tipos y las políticas `fotos_storage_*` de `storage.objects`.
-2. **Local**: `cp .env.example .env`, completá `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`, después `npm install && npm run dev`.
+2. **Local**: `cp .env.example .env`, completá `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` (sirve la *publishable key* nueva o la *anon key* clásica; nunca la secret/service_role), después `npm install && npm run dev`.
 3. **Netlify**: conectá el repo, definí las mismas dos variables en *Site settings → Environment variables*. `netlify.toml` ya configura build, SPA redirects y caché del service worker.
 
 ## Estructura
@@ -58,6 +58,8 @@ La app no tiene cuentas: cualquiera que tenga la URL puede **ver y agregar** obr
 - **Alta sólo por RPC.** `avances` y `fotos_avance` no aceptan INSERT directo: `crear_avance` valida obra activa, nombre, rutas dentro de la carpeta del avance, que las fotos existan en Storage y un máximo de 12 fotos.
 - **Sin sobrescribir.** Storage sólo acepta archivos nuevos dentro de la carpeta de una obra existente; no hay políticas de update/delete. Un "ya existe" (409) en un reintento se toma como subida exitosa.
 - **Reportes al cliente.** `obtener_reporte_publico` quita en el servidor las notas internas y los estados problemáticos salvo que el reporte los incluya. Los enlaces pueden vencer o revocarse, y no se pueden reactivar.
+- **Fotos con CORS.** Los `<img>` usan `crossOrigin="anonymous"` para que el service worker cachee respuestas reales y no opacas (Chrome cuenta ~7 MB por cada respuesta opaca). Supabase Storage responde con `Access-Control-Allow-Origin: *`.
+- **Compresión offline.** El worker de compresión se sirve desde la propia app (no desde un CDN), así funciona sin señal.
 - **Bucket de lectura pública** con rutas `obra/avance/foto` en UUIDs: los reportes y el caché offline del PWA funcionan sin firmar URLs.
 - **PDF.** El reporte público tiene estilos `@media print` (A4, sin cortes dentro de un registro): "Imprimir / Guardar PDF" usa el diálogo nativo, sin librerías pesadas.
 

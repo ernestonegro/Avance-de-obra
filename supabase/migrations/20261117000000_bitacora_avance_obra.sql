@@ -38,6 +38,12 @@ create type public.estado_avance as enum (
   'listo_inspeccion'
 );
 
+-- Usada por un CHECK (los CHECK no admiten subconsultas directas).
+create or replace function public.es_zona_horaria_valida(p_tz text)
+returns boolean language sql stable set search_path = '' as $$
+  select exists (select 1 from pg_catalog.pg_timezone_names where name = p_tz);
+$$;
+
 -- -----------------------------------------------------------------------------
 -- 2. Tablas
 -- -----------------------------------------------------------------------------
@@ -47,7 +53,8 @@ create table public.proyectos (
   direccion      text check (char_length(direccion) <= 200),
   cliente_nombre text check (char_length(cliente_nombre) <= 120),
   fecha_inicio   date,
-  zona_horaria   text not null default 'America/Argentina/Buenos_Aires',
+  zona_horaria   text not null default 'America/Argentina/Buenos_Aires'
+                 check (public.es_zona_horaria_valida(zona_horaria)),
   activo         boolean not null default true,
   created_at     timestamptz not null default now()
 );
@@ -114,10 +121,18 @@ create index reportes_publicos_proyecto_idx on public.reportes_publicos (proyect
 revoke all on public.proyectos, public.avances, public.fotos_avance, public.reportes_publicos
   from anon, authenticated;
 
-grant select, insert on public.proyectos         to anon, authenticated;
-grant select         on public.avances           to anon, authenticated; -- alta sólo vía crear_avance()
-grant select         on public.fotos_avance      to anon, authenticated; -- alta sólo vía crear_avance()
-grant select, insert on public.reportes_publicos to anon, authenticated;
+-- INSERT limitado por columna: desde la app no se pueden fijar id, token, created_at,
+-- activo ni zona_horaria (p. ej. un token débil elegido a mano o una zona inválida
+-- que rompería los reportes).
+grant select on public.proyectos to anon, authenticated;
+grant insert (nombre, direccion, cliente_nombre, fecha_inicio) on public.proyectos to anon, authenticated;
+
+grant select on public.avances      to anon, authenticated; -- alta sólo vía crear_avance()
+grant select on public.fotos_avance to anon, authenticated; -- alta sólo vía crear_avance()
+
+grant select on public.reportes_publicos to anon, authenticated;
+grant insert (proyecto_id, titulo, fecha_desde, fecha_hasta, etapas, incluir_notas_internas, incluir_problemas, expira_en)
+  on public.reportes_publicos to anon, authenticated;
 grant update (revocado) on public.reportes_publicos to anon, authenticated;
 
 alter table public.proyectos         enable row level security;
@@ -173,7 +188,16 @@ declare
   v_prefijo   text := p_proyecto_id::text || '/' || p_id::text || '/';
   v_creado_en timestamptz;
 begin
-  if jsonb_typeof(p_fotos) <> 'array' then
+  if char_length(trim(coalesce(p_autor_nombre, ''))) < 2 then
+    raise exception 'Falta el nombre de quien registra (mínimo 2 letras)';
+  end if;
+  if p_etapa is null then
+    raise exception 'Falta la etapa / rubro';
+  end if;
+  if p_id is null or p_proyecto_id is null then
+    raise exception 'Faltan datos del avance';
+  end if;
+  if jsonb_typeof(coalesce(p_fotos, 'null'::jsonb)) <> 'array' then
     raise exception 'p_fotos debe ser un array';
   end if;
   if jsonb_array_length(p_fotos) > 12 then
@@ -188,7 +212,7 @@ begin
 
   insert into public.avances (id, proyecto_id, autor_nombre, etapa, estado, comentario, nota_interna)
   values (
-    p_id, p_proyecto_id, trim(p_autor_nombre), p_etapa, p_estado,
+    p_id, p_proyecto_id, trim(p_autor_nombre), p_etapa, coalesce(p_estado, 'avance_normal'),
     nullif(trim(p_comentario), ''), nullif(trim(p_nota_interna), '')
   )
   on conflict (id) do nothing;
