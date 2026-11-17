@@ -2,7 +2,7 @@
 
 Registro diario de avance de obra con fotos comprimidas en el teléfono, feed cronológico con filtros y reportes públicos de solo lectura para clientes.
 
-**Stack:** React 19 + Vite 8 · Tailwind CSS 4 · Lucide · Supabase (Postgres, Storage, Auth) · vite-plugin-pwa · Netlify.
+**Stack:** React 19 + Vite 8 · Tailwind CSS 4 · Lucide · Supabase (Postgres, Storage) · vite-plugin-pwa · Netlify.
 
 ## Acceso: sin login
 
