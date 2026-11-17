@@ -5,6 +5,7 @@ import FormularioAvance from './features/avances/FormularioAvance'
 import GeneradorReporte from './features/reportes/GeneradorReporte'
 import ReportePublico from './features/reportes/ReportePublico'
 import Proyectos from './features/proyectos/Proyectos'
+import Avisos from './features/avisos/Avisos'
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="nuevo" element={<FormularioAvance />} />
           <Route path="reportes" element={<GeneradorReporte />} />
           <Route path="obras" element={<Proyectos />} />
+          <Route path="avisos" element={<Avisos />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

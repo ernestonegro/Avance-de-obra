@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { ClipboardList, Plus, FileText, Building2, WifiOff, HardHat, User, Wifi } from 'lucide-react'
+import { ClipboardList, Plus, FileText, Building2, WifiOff, HardHat, User, Wifi, Bell } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useAutor } from '../../hooks/useAutor'
 
@@ -22,6 +22,7 @@ const NAV = [
   { to: '/', etiqueta: 'Bitácora', icono: ClipboardList, end: true },
   { to: '/reportes', etiqueta: 'Reportes', icono: FileText },
   { to: '/obras', etiqueta: 'Obras', icono: Building2 },
+  { to: '/avisos', etiqueta: 'Avisos', icono: Bell },
 ]
 
 function Logo({ claro = false }) {
@@ -132,15 +133,26 @@ export default function AppShell() {
               <div className="min-w-0">
                 <Logo claro />
               </div>
-              <NavLink
-                to="/obras"
-                className={({ isActive }) =>
-                  `flex size-12 shrink-0 items-center justify-center rounded-xl ${isActive ? 'bg-yellow-400 text-neutral-950' : 'active:bg-white/10'}`
-                }
-                aria-label="Obras"
-              >
-                <Building2 className="size-6" />
-              </NavLink>
+              <div className="flex shrink-0 items-center">
+                <NavLink
+                  to="/avisos"
+                  className={({ isActive }) =>
+                    `flex size-12 items-center justify-center rounded-xl ${isActive ? 'bg-yellow-400 text-neutral-950' : 'active:bg-white/10'}`
+                  }
+                  aria-label="Avisos"
+                >
+                  <Bell className="size-6" />
+                </NavLink>
+                <NavLink
+                  to="/obras"
+                  className={({ isActive }) =>
+                    `flex size-12 items-center justify-center rounded-xl ${isActive ? 'bg-yellow-400 text-neutral-950' : 'active:bg-white/10'}`
+                  }
+                  aria-label="Obras"
+                >
+                  <Building2 className="size-6" />
+                </NavLink>
+              </div>
             </div>
             <div className="franja-obra h-1.5" aria-hidden />
           </div>

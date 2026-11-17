@@ -52,6 +52,15 @@ La app no tiene cuentas: cualquiera que tenga la URL puede **ver y agregar** obr
         └── proyectos/Proyectos.jsx
 ```
 
+## Notificaciones push
+
+Cada persona activa los avisos en **Avisos** (campana) y elige de qué obras. Al guardarse un avance, la app llama a la función de Netlify `push-avisar`, que manda la notificación a los celulares suscriptos (menos al de quien lo cargó).
+
+- Requiere correr `supabase/migrations/20261120000000_notificaciones_push.sql` y definir en Netlify la variable **`SUPABASE_SERVICE_ROLE_KEY`** (Supabase → Project Settings → API Keys → *service_role* / *secret*). Esa clave vive sólo en el servidor.
+- Las claves VAPID se generan solas en el primer uso y se guardan en `config_push`.
+- iPhone: sólo con la app agregada a la pantalla de inicio (iOS 16.4+). Android/escritorio: Chrome, Edge o Firefox.
+- Funciones: `netlify/functions/push-clave.mjs`, `push-avisar.mjs`, `push-prueba.mjs` (lógica en `netlify/lib/push.mjs`); el service worker importa `public/sw-push.js`.
+
 ## Decisiones de diseño
 
 - **Subida resistente a 4G débil.** Cada foto se comprime en el teléfono (≈0,4 MB + miniatura ≈60 KB), se sube de a una por XHR (barra de progreso real) con 5 intentos y backoff, y si se corta la señal espera al evento `online`. El UUID del avance se genera en el cliente: un reintento no vuelve a subir lo que ya subió ni duplica registros (`crear_avance` es idempotente y transaccional).

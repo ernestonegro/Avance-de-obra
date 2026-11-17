@@ -27,7 +27,11 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Manejo de notificaciones push (public/sw-push.js)
+        importScripts: ['sw-push.js'],
         navigateFallback: '/index.html',
+        // No interceptar las funciones de Netlify con el fallback de la SPA
+        navigateFallbackDenylist: [/^\/\.netlify\//],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         runtimeCaching: [
           {

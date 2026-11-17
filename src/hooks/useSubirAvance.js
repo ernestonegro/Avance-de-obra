@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase, mensajeError, esErrorDeRed } from '../lib/supabase'
 import { comprimirFoto } from '../lib/imagenes'
 import { subirArchivo, esperarSenal } from '../lib/subida'
+import { avisarAvance } from '../lib/push'
 
 /*
  * Estados por foto: pendiente → comprimiendo → subiendo → lista | error
@@ -170,6 +171,7 @@ export function useSubirAvance() {
           )
           return false
         }
+        avisarAvance(parametros.p_id) // notificación al equipo, sin esperar
         setFase('listo')
         return true
       } finally {
