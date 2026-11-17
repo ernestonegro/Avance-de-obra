@@ -4,6 +4,11 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # Datos públicos de Supabase (van igual dentro del JS que descarga el navegador).
+  # La seguridad la dan los permisos de la base, no el secreto de esta clave.
+  # NUNCA poner acá la secret / service_role key.
+  VITE_SUPABASE_URL = "https://evwoxjmpbrvcfadnzitr.supabase.co"
+  VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2d294am1wYnJ2Y2ZhZG56aXRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ5Mjg4NTUsImV4cCI6MjExMDUwNDg1NX0.TCsbJOfNImN4Kmie_8hCs1IV_YR0cq-K1ClFD24Rkls"
 
 # SPA: todas las rutas (incluida /r/:token del reporte público) sirven index.html
 [[redirects]]
