@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link2, Copy, Share2, ExternalLink, Ban, FileText, Check } from 'lucide-react'
+import { Link2, Copy, Share2, ExternalLink, Ban, FileText, Check, Radio, CalendarRange, X } from 'lucide-react'
 import { useObraActiva, useProyectos } from '../../hooks/useProyectos'
 import { useReportes, urlReportePublico } from '../../hooks/useReportes'
 import { hoyISO, restarDias, fechaCortaDesdeDia, fechaCorta } from '../../lib/fechas'
@@ -72,7 +72,10 @@ export default function GeneradorReporte() {
   const hoy = hoyISO()
   const [desde, setDesde] = useState(restarDias(hoy, 6))
   const [hasta, setHasta] = useState(hoy)
-  const [titulo, setTitulo] = useState('Reporte de avance de obra')
+  // "vivo": sin fecha de fin ni vencimiento, hasta que se finaliza. "periodo": rango fijo.
+  const [tipo, setTipo] = useState('vivo')
+  const [desdeVivo, setDesdeVivo] = useState('') // vacío = desde el inicio de la obra
+  const [titulo, setTitulo] = useState('Avance de obra')
   const [incluirNotas, setIncluirNotas] = useState(false)
   const [incluirProblemas, setIncluirProblemas] = useState(false)
   const [diasVigencia, setDiasVigencia] = useState('30')
@@ -82,7 +85,7 @@ export default function GeneradorReporte() {
   const [errorRevocar, setErrorRevocar] = useState('')
 
   const alRevocar = async (r) => {
-    if (!window.confirm(`¿Revocar "${r.titulo}"? El enlace deja de funcionar para siempre (no se puede reactivar).`)) return
+    if (!window.confirm(`¿Finalizar "${r.titulo}"? El cliente deja de poder verlo y no se puede reactivar (podés generar uno nuevo).`)) return
     setErrorRevocar('')
     try {
       await revocar(r.id)
@@ -98,18 +101,19 @@ export default function GeneradorReporte() {
     e.preventDefault()
     setErrorCrear('')
     if (!obra) return setErrorCrear('Elegí la obra.')
-    if (hasta < desde) return setErrorCrear('La fecha "hasta" debe ser posterior a "desde".')
+    const enVivo = tipo === 'vivo'
+    if (!enVivo && hasta < desde) return setErrorCrear('La fecha "hasta" debe ser posterior a "desde".')
     setCreando(true)
     try {
       const r = await crear({
-        titulo: titulo.trim() || 'Reporte de avance de obra',
-        fecha_desde: desde,
-        fecha_hasta: hasta,
+        titulo: titulo.trim() || (enVivo ? 'Avance de obra' : 'Reporte de avance de obra'),
+        fecha_desde: enVivo ? desdeVivo || null : desde,
+        fecha_hasta: enVivo ? null : hasta,
         incluir_notas_internas: incluirNotas,
         incluir_problemas: incluirProblemas,
-        expira_en: diasVigencia ? new Date(Date.now() + Number(diasVigencia) * 86_400_000).toISOString() : null,
+        expira_en: enVivo || !diasVigencia ? null : new Date(Date.now() + Number(diasVigencia) * 86_400_000).toISOString(),
       })
-      setNuevo({ ...r, titulo })
+      setNuevo({ ...r, titulo, enVivo })
     } catch (err) {
       setErrorCrear(err.message)
     } finally {
@@ -123,7 +127,7 @@ export default function GeneradorReporte() {
         <p className="text-sm font-bold tracking-widest text-neutral-500 uppercase">Reportes</p>
         <h1 className="text-2xl font-black lg:text-4xl">Reporte para cliente</h1>
         <p className="mt-1 max-w-2xl text-neutral-600">
-          Generá un enlace de solo lectura con el avance de un período. El cliente lo abre sin cuenta y lo puede guardar como PDF.
+          Generá un enlace de solo lectura para el cliente: lo abre sin cuenta, ve el avance día a día y lo puede guardar como PDF.
         </p>
       </div>
 
@@ -137,6 +141,52 @@ export default function GeneradorReporte() {
         </h2>
         {cargandoObras ? <Skeleton className="h-12 w-full" /> : <SelectorObra proyectos={proyectos} valor={obra} onCambiar={setObra} />}
 
+        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tipo de enlace">
+          {[
+            { valor: 'vivo', icono: Radio, titulo: 'En vivo', texto: 'Día a día, hasta que lo finalices' },
+            { valor: 'periodo', icono: CalendarRange, titulo: 'Período fijo', texto: 'Entre dos fechas' },
+          ].map(({ valor, icono: Icono, titulo: t, texto }) => (
+            <button
+              key={valor}
+              type="button"
+              role="radio"
+              aria-checked={tipo === valor}
+              onClick={() => {
+                setTipo(valor)
+                setTitulo(valor === 'vivo' ? 'Avance de obra' : 'Reporte de avance de obra')
+              }}
+              className={`flex flex-col items-start gap-1 rounded-xl border-2 p-3 text-left transition ${
+                tipo === valor ? 'border-neutral-950 bg-neutral-950 text-white' : 'border-neutral-200 hover:border-neutral-400'
+              }`}
+            >
+              <Icono className={`size-5 ${tipo === valor ? 'text-yellow-400' : 'text-neutral-500'}`} aria-hidden />
+              <span className="font-black">{t}</span>
+              <span className={`text-sm leading-tight ${tipo === valor ? 'text-neutral-300' : 'text-neutral-600'}`}>{texto}</span>
+            </button>
+          ))}
+        </div>
+
+        {tipo === 'vivo' ? (
+          <div className="space-y-1.5">
+            <label className="block text-sm font-bold" htmlFor="desde-vivo">
+              Mostrar desde
+            </label>
+            <div className="flex gap-2">
+              <div className="min-w-0 flex-1">
+                <input id="desde-vivo" type="date" value={desdeVivo} max={hoy} onChange={(e) => setDesdeVivo(e.target.value)} className="campo-fecha" />
+              </div>
+              {desdeVivo && (
+                <button type="button" onClick={() => setDesdeVivo('')} className="flex size-12 shrink-0 items-center justify-center rounded-xl border-2 border-neutral-300" aria-label="Quitar fecha: desde el inicio">
+                  <X className="size-5" />
+                </button>
+              )}
+            </div>
+            <p className="text-sm text-neutral-600">
+              {desdeVivo ? `Desde el ${fechaCortaDesdeDia(desdeVivo)} hasta hoy.` : 'Vacío = desde el inicio de la obra.'} Cada avance nuevo aparece solo; el enlace no vence.
+            </p>
+          </div>
+        ) : (
+        <>
         <div className="space-y-1.5">
         <p className="text-sm font-bold">Período (últimos…)</p>
         <div className="grid grid-cols-3 gap-2">
@@ -173,6 +223,18 @@ export default function GeneradorReporte() {
         </div>
 
         <label className="block space-y-1">
+          <span className="text-sm font-bold">Vigencia del enlace</span>
+          <select value={diasVigencia} onChange={(e) => setDiasVigencia(e.target.value)} className="min-h-12 w-full rounded-xl border-2 border-neutral-950 bg-white px-3 font-bold">
+            <option value="7">7 días</option>
+            <option value="30">30 días</option>
+            <option value="90">90 días</option>
+            <option value="">Sin vencimiento</option>
+          </select>
+        </label>
+        </>
+        )}
+
+        <label className="block space-y-1">
           <span className="text-sm font-bold">Título</span>
           <input value={titulo} onChange={(e) => setTitulo(e.target.value)} maxLength={120} className="min-h-12 w-full rounded-xl border-2 border-neutral-950 px-3" />
         </label>
@@ -185,26 +247,20 @@ export default function GeneradorReporte() {
         />
         <Interruptor marcado={incluirNotas} onCambiar={setIncluirNotas} titulo="Incluir notas internas" descripcion="Por defecto el cliente sólo ve el comentario técnico" />
 
-        <label className="block space-y-1">
-          <span className="text-sm font-bold">Vigencia del enlace</span>
-          <select value={diasVigencia} onChange={(e) => setDiasVigencia(e.target.value)} className="min-h-12 w-full rounded-xl border-2 border-neutral-950 bg-white px-3 font-bold">
-            <option value="7">7 días</option>
-            <option value="30">30 días</option>
-            <option value="90">90 días</option>
-            <option value="">Sin vencimiento</option>
-          </select>
-        </label>
-
         {errorCrear && <Aviso tipo="error">{errorCrear}</Aviso>}
         <Boton type="submit" tamano="lg" variante="acento" icono={Link2} cargando={creando} bloque>
-          Generar enlace de reporte
+          {tipo === 'vivo' ? 'Generar enlace en vivo' : 'Generar enlace del período'}
         </Boton>
       </form>
 
       <div className="space-y-6">
       {nuevo && (
         <div className="space-y-3 rounded-2xl border-2 border-green-700 bg-green-50 p-3">
-          <p className="font-bold text-green-900">Enlace listo (solo lectura). Desde “Ver / PDF” podés guardarlo como PDF.</p>
+          <p className="font-bold text-green-900">
+            {nuevo.enVivo
+              ? 'Enlace en vivo listo: el cliente va a ver cada avance nuevo hasta que lo finalices.'
+              : 'Enlace listo (solo lectura). Desde “Ver / PDF” podés guardarlo como PDF.'}
+          </p>
           <p className="rounded-lg bg-white p-2 font-mono text-xs break-all">{urlReportePublico(nuevo.token)}</p>
           <AccionesEnlace token={nuevo.token} titulo={nuevo.titulo} />
         </div>
@@ -217,18 +273,32 @@ export default function GeneradorReporte() {
           {cargando && reportes.length === 0 && <Skeleton className="h-24 w-full" />}
           {!cargando && reportes.length === 0 && <p className="text-neutral-600">Todavía no hay reportes para esta obra.</p>}
           <ul className="space-y-3">
-            {reportes.map((r) => {
+            {[...reportes]
+              .sort((a, b) => Number(Boolean(a.revocado)) - Number(Boolean(b.revocado)))
+              .map((r) => {
               const vencido = r.expira_en && new Date(r.expira_en) < new Date()
               const inactivo = r.revocado || vencido
+              const enVivo = !r.fecha_hasta
               return (
                 <li key={r.id} className={`space-y-2 rounded-xl border-2 p-3 ${inactivo ? 'border-neutral-300 text-neutral-500' : 'border-neutral-950'}`}>
                   <div className="flex items-start gap-2">
                     <FileText className="mt-0.5 size-5 shrink-0" aria-hidden />
                     <div className="min-w-0 flex-1">
-                      <p className="font-bold">{r.titulo}</p>
+                      <p className="flex flex-wrap items-center gap-2 font-bold">
+                        {r.titulo}
+                        {enVivo && !inactivo && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-xs font-black tracking-wide text-white uppercase">
+                            <span className="size-1.5 animate-pulse rounded-full bg-white" aria-hidden /> En vivo
+                          </span>
+                        )}
+                      </p>
                       <p className="text-sm">
-                        {fechaCortaDesdeDia(r.fecha_desde)} → {fechaCortaDesdeDia(r.fecha_hasta)}
-                        {r.revocado ? ' · Revocado' : vencido ? ' · Vencido' : r.expira_en ? ` · vence ${fechaCorta(r.expira_en)}` : ''}
+                        {enVivo
+                          ? r.fecha_desde
+                            ? `Desde el ${fechaCortaDesdeDia(r.fecha_desde)} · día a día`
+                            : 'Desde el inicio · día a día'
+                          : `${fechaCortaDesdeDia(r.fecha_desde)} → ${fechaCortaDesdeDia(r.fecha_hasta)}`}
+                        {r.revocado ? ' · Finalizado' : vencido ? ' · Vencido' : r.expira_en ? ` · vence ${fechaCorta(r.expira_en)}` : ''}
                       </p>
                     </div>
                   </div>
@@ -236,7 +306,7 @@ export default function GeneradorReporte() {
                     <>
                       <AccionesEnlace token={r.token} titulo={r.titulo} />
                       <Boton variante="fantasma" icono={Ban} className="text-red-700" onClick={() => alRevocar(r)}>
-                        Revocar enlace
+                        Finalizar enlace
                       </Boton>
                     </>
                   )}

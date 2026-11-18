@@ -35,6 +35,10 @@ export function useReportes(proyectoId) {
         .insert({ proyecto_id: proyectoId, ...datos })
         .select('id, token')
         .single()
+      // 23502 (not null) en las fechas: la base todavía no tiene la migración de enlaces en vivo.
+      if (error?.code === '23502' && /fecha_(desde|hasta)/.test(error.message)) {
+        throw new Error('La base todavía no admite enlaces en vivo: falta correr en Supabase el SQL "20261121000000_enlaces_en_vivo.sql".')
+      }
       if (error) throw new Error(mensajeError(error))
       await recargar()
       return data

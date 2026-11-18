@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Printer, Lock, MapPin, User, Loader2, HardHat, CalendarDays, ClipboardList, Images, Layers, Clock } from 'lucide-react'
 import { supabase, mensajeError, urlFoto } from '../../lib/supabase'
@@ -17,25 +17,43 @@ export default function ReportePublico() {
   const [error, setError] = useState('')
   const [visor, setVisor] = useState(null)
   const [preparando, setPreparando] = useState(false)
+  const [actualizado, setActualizado] = useState(null)
 
-  useEffect(() => {
-    let activo = true
-    supabase.rpc('obtener_reporte_publico', { p_token: token }).then(({ data, error }) => {
-      if (!activo) return
+  // silencioso = refresco en segundo plano: si falla (sin señal) se conserva lo que ya se ve.
+  const cargar = useCallback(
+    async (silencioso = false) => {
+      const { data, error } = await supabase.rpc('obtener_reporte_publico', { p_token: token })
       if (error) {
+        if (silencioso) return
         setError(mensajeError(error))
         setEstado('error')
-      } else if (!data) setEstado('no-encontrado')
+      } else if (!data) setEstado('no-encontrado') // finalizado o vencido (también a mitad de la visita)
       else {
         setDatos(data)
         setEstado('ok')
+        setActualizado(new Date())
         document.title = `${data.reporte.titulo} — ${data.proyecto.nombre}`
       }
-    })
+    },
+    [token],
+  )
+
+  useEffect(() => {
+    cargar()
+  }, [cargar])
+
+  // Enlace en vivo: se actualiza solo al volver a la pestaña y cada 5 minutos mientras está visible.
+  const enVivo = Boolean(datos?.reporte.en_vivo)
+  useEffect(() => {
+    if (!enVivo) return
+    const alVolver = () => document.visibilityState === 'visible' && cargar(true)
+    document.addEventListener('visibilitychange', alVolver)
+    const t = setInterval(() => document.visibilityState === 'visible' && cargar(true), 5 * 60 * 1000)
     return () => {
-      activo = false
+      document.removeEventListener('visibilitychange', alVolver)
+      clearInterval(t)
     }
-  }, [token])
+  }, [enVivo, cargar])
 
   // Agrupado en la zona horaria de la obra: coincide con el rango que filtra el servidor,
   // aunque el cliente abra el enlace desde otro país.
@@ -54,6 +72,9 @@ export default function ReportePublico() {
   const imprimir = async () => {
     setPreparando(true)
     const imgs = [...document.querySelectorAll('img[data-foto-reporte]')]
+    // En pantalla las fotos cargan al hacer scroll (un enlace en vivo puede tener cientos);
+    // para imprimir se fuerzan todas.
+    imgs.forEach((img) => (img.loading = 'eager'))
     await Promise.race([
       Promise.all(imgs.map((img) => (img.complete ? null : img.decode().catch(() => {})))),
       new Promise((r) => setTimeout(r, 20_000)), // con señal mala, no bloquear para siempre
@@ -74,7 +95,7 @@ export default function ReportePublico() {
   if (estado !== 'ok') {
     return (
       <div className="mx-auto max-w-xl p-4 pt-16">
-        <Aviso tipo="error">{estado === 'error' ? error : 'Este reporte no existe, fue revocado o venció.'}</Aviso>
+        <Aviso tipo="error">{estado === 'error' ? error : 'Este enlace fue finalizado o venció. Pedile uno nuevo a la empresa constructora.'}</Aviso>
       </div>
     )
   }
@@ -96,9 +117,21 @@ export default function ReportePublico() {
         <div className="franja-obra h-2" aria-hidden />
         <div className="mx-auto max-w-5xl px-4 pt-8 pb-10 lg:px-8 lg:pt-12 lg:pb-14 print:px-0 print:pt-0 print:pb-4">
           <div className="flex flex-wrap items-start justify-between gap-4">
-            <p className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-3 py-1 text-sm font-black tracking-wide text-neutral-950 uppercase">
-              <HardHat className="size-4" aria-hidden /> {reporte.titulo}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-3 py-1 text-sm font-black tracking-wide text-neutral-950 uppercase">
+                <HardHat className="size-4" aria-hidden /> {reporte.titulo}
+              </p>
+              {reporte.en_vivo && (
+                <p className="inline-flex items-center gap-2 rounded-full bg-red-600 px-3 py-1 text-sm font-black tracking-wide text-white uppercase print:hidden">
+                  <span className="size-2 animate-pulse rounded-full bg-white" aria-hidden /> En vivo
+                </p>
+              )}
+              {reporte.en_vivo && actualizado && (
+                <p className="text-sm text-neutral-400 print:text-neutral-600">
+                  Actualizado {actualizado.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })} h
+                </p>
+              )}
+            </div>
             <button
               onClick={imprimir}
               disabled={preparando}
@@ -121,7 +154,12 @@ export default function ReportePublico() {
               </span>
             )}
             <span className="flex items-center gap-1.5 font-bold text-white print:text-neutral-950">
-              <CalendarDays className="size-4" aria-hidden /> {fechaCortaDesdeDia(reporte.fecha_desde)} al {fechaCortaDesdeDia(reporte.fecha_hasta)}
+              <CalendarDays className="size-4" aria-hidden />{' '}
+              {reporte.en_vivo
+                ? reporte.fecha_desde
+                  ? `Desde el ${fechaCortaDesdeDia(reporte.fecha_desde)} hasta hoy`
+                  : 'Desde el inicio de la obra hasta hoy'
+                : `${fechaCortaDesdeDia(reporte.fecha_desde)} al ${fechaCortaDesdeDia(reporte.fecha_hasta)}`}
             </span>
           </div>
 
@@ -192,10 +230,11 @@ export default function ReportePublico() {
                           className="group block w-full overflow-hidden rounded-xl bg-neutral-200"
                           aria-label={`Ampliar foto ${i + 1}`}
                         >
-                          {/* Miniatura (≈480px): suficiente para A4 a 3 columnas. Sin loading="lazy":
-                              las fotos fuera de pantalla no se cargarían y saldrían en blanco al imprimir. */}
+                          {/* Miniatura (≈480px): suficiente para A4 a 3 columnas. Carga diferida en
+                              pantalla; imprimir() fuerza la carga de todas antes del diálogo. */}
                           <img
                             data-foto-reporte
+                            loading="lazy"
                             src={urlFoto(f.thumb_path)}
                             crossOrigin="anonymous"
                             alt=""
