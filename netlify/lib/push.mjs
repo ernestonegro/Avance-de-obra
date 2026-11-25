@@ -113,7 +113,7 @@ export function manejar(handler) {
     } catch (e) {
       if (e instanceof ErrorConfig) return json({ error: e.message, codigo: 'config' }, 503)
       console.error(e)
-      return json({ error: 'Error interno al procesar el aviso' }, 500)
+      return json({ error: 'Error interno del servidor' }, 500)
     }
   }
 }

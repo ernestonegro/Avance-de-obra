@@ -78,5 +78,8 @@ export function useFeedAvances({ proyectoId = '', etapa = '', estado = '' } = {}
     recargar()
   }, [recargar])
 
-  return { avances, cargando, cargandoMas, hayMas, error, recargar, cargarMas }
+  /** Saca un avance de la lista sin recargar (después de borrarlo). */
+  const quitar = useCallback((id) => setAvances((prev) => prev.filter((a) => a.id !== id)), [])
+
+  return { avances, cargando, cargandoMas, hayMas, error, recargar, cargarMas, quitar }
 }

@@ -42,7 +42,7 @@ export default function FeedAvances() {
     if (nuevos.obra !== filtros.obra && nuevos.obra) setObraActiva(nuevos.obra)
   }
 
-  const { avances, cargando, cargandoMas, hayMas, error, recargar, cargarMas } = useFeedAvances({
+  const { avances, cargando, cargandoMas, hayMas, error, recargar, cargarMas, quitar } = useFeedAvances({
     proyectoId: filtros.obra,
     etapa: filtros.etapa,
     estado: filtros.estado,
@@ -176,7 +176,16 @@ export default function FeedAvances() {
                   <span className="absolute top-5 -left-[0.7rem] hidden size-4 rounded-full bg-yellow-400 ring-4 ring-neutral-100 lg:block" aria-hidden />
                   <div className="grid gap-4 xl:grid-cols-2">
                     {items.map((a) => (
-                      <TarjetaAvance key={a.id} avance={a} mostrarObra={!filtros.obra} onAbrirFoto={abrirFoto} />
+                      <TarjetaAvance
+                        key={a.id}
+                        avance={a}
+                        mostrarObra={!filtros.obra}
+                        onAbrirFoto={abrirFoto}
+                        onBorrado={() => {
+                          quitar(a.id)
+                          recargarResumen()
+                        }}
+                      />
                     ))}
                   </div>
                 </div>
